@@ -1,0 +1,11 @@
+[package]
+name = "rustreach"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "rustreach"
+path = "src/main.rs"
+
+[dependencies]
+lazy_static = "1.5.0"
