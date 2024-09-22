@@ -1,7 +1,8 @@
-use super::geometry::*;
-use super::interval::*;
+use super::super::rtreach::geometry::*;
+use super::super::rtreach::interval::*;
+use super::super::rtreach::system_model::SystemModel;
 
-pub const NUM_DIMS: usize = 4;
+pub const BICYCLE_NUM_DIMS: usize = 4;
 
 // a bicycle model to model the car's dynamics. The bicycle model is a standard model for cars with front steering. 
 // This model tracks well for slow speeds
@@ -39,9 +40,22 @@ pub const NUM_DIMS: usize = 4;
 
 // state vector x,y,v,theta
 
+pub struct BicycleModel;
+
+impl SystemModel<BICYCLE_NUM_DIMS> for BicycleModel {
+    fn get_derivative_bounds(
+        &self,
+        rect: &HyperRectangle<BICYCLE_NUM_DIMS>,
+        face_index: usize,
+        ctrl_inputs: &Vec<f64>,
+    ) -> f64 {
+        _get_derivative_bounds_bicycle(rect, face_index, ctrl_inputs[0], ctrl_inputs[1])
+    }
+}
+
 // implement the derivative using interval arithmetic
-pub fn get_derivative_bounds_bicycle(
-    rect: &HyperRectangle,
+fn _get_derivative_bounds_bicycle(
+    rect: &HyperRectangle<BICYCLE_NUM_DIMS>,
     face_index: usize,
     heading_input: f64,
     throttle: f64,

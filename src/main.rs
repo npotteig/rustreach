@@ -1,10 +1,11 @@
-mod modules;
-use core::num;
+mod rtreach;
+mod bicycle;
 
-use modules::debug::DEBUG;
-use modules::face_lift::ITERATIONS_AT_QUIT;
-use modules::bicycle_model::{get_simulated_safe_time, run_reachability_bicycle};
-use modules::bicycle_safety::{allocate_obstacles, load_wallpoints};
+use rtreach::debug::DEBUG;
+use rtreach::face_lift::ITERATIONS_AT_QUIT;
+use bicycle::dynamics_bicycle::BicycleModel;
+use bicycle::bicycle_model::{get_simulated_safe_time, run_reachability_bicycle};
+use rtreach::obstacle_safety::{allocate_obstacles, load_wallpoints};
 
 const FILE_PATH: &str = "data/porto_obstacles.txt";
 fn main() {
@@ -37,8 +38,9 @@ fn main() {
 
     let delta: f64 = control_input[1];
     let u: f64 = control_input[0];
+    let bicycle_model = BicycleModel;
     // simulate the car with a constant input passed from the command line
-    get_simulated_safe_time(start_state, delta, u);
+    get_simulated_safe_time(&bicycle_model, start_state, delta, u);
     println!();
 
     // location of obstacles in our scenario
@@ -54,7 +56,7 @@ fn main() {
     load_wallpoints(FILE_PATH, true);
 
     // run reachability analysis test 
-    let safe: bool = run_reachability_bicycle(start_state, time_to_safe, runtime_ms, start_ms, delta, u);
+    let safe: bool = run_reachability_bicycle(&bicycle_model, start_state, time_to_safe, runtime_ms, start_ms, delta, u);
 
     //int runtimeMs = 20; // run for 20 milliseconds
     if DEBUG {

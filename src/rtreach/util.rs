@@ -5,43 +5,21 @@ use std::time::{SystemTime, UNIX_EPOCH, Duration};
 use super::face_lift::LiftingSettings;
 
 lazy_static! {
-    pub static ref ERROR_PRINT_PARAMS: Mutex<Option<LiftingSettings>> = Mutex::new(None);
-    pub static ref ERROR_PARAMS_ASSIGNED: Mutex<bool> = Mutex::new(false);
     pub static ref INIIALIZED: Mutex<bool> = Mutex::new(false);
     pub static ref START_SEC: Mutex<u64> = Mutex::new(0);
 }
 
-pub fn set_error_print_params(params: &LiftingSettings) {
-    {
-        let mut guard: std::sync::MutexGuard<'_, Option<LiftingSettings>> = ERROR_PRINT_PARAMS.lock().unwrap();
-        *guard = Some(*params);
-    }
-    {
-        let mut guard: std::sync::MutexGuard<'_, bool> = ERROR_PARAMS_ASSIGNED.lock().unwrap();
-        *guard = false;
-    }
-}
 
-
-pub fn error_exit(str: &str) {
+pub fn error_exit<const NUM_DIMS: usize>(str: &str, error_print_params: &LiftingSettings<NUM_DIMS>, error_params_assigned: bool) {
     println!("Error: {}", str);
-    let error_params_assigned: bool = *ERROR_PARAMS_ASSIGNED.lock().unwrap();
-    let error_print_params: std::sync::MutexGuard<'_, Option<LiftingSettings>> = ERROR_PRINT_PARAMS.lock().unwrap();
 
     // print the params that caused the error
     if error_params_assigned {
-        match *error_print_params{
-            Some(ref settings) => {
-                println!("\nSettings:");
-                println!("Reach Time = {}", settings.reach_time);
-                println!("Runtime = {} ms", settings.max_runtime_milliseconds);
-                println!("Init = ");
-                println(&settings.init);
-            }
-            None => {
-                println!("Error print params were not assigned.");
-            }
-        }
+        println!("\nSettings:");
+        println!("Reach Time = {}", error_print_params.reach_time);
+        println!("Runtime = {} ms", error_print_params.max_runtime_milliseconds);
+        println!("Init = ");
+        println(&error_print_params.init);
     } else {
         println!("Error print params were not assigned.");
     }

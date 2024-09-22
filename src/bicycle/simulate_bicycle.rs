@@ -1,16 +1,18 @@
-use super::dynamics_bicycle::{NUM_DIMS, get_derivative_bounds_bicycle};
-use super::geometry::HyperRectangle;
-use super::debug::DEBUG;
+// use super::dynamics_bicycle::{NUM_DIMS, get_derivative_bounds_bicycle};
+use super::super::rtreach::geometry::HyperRectangle;
+use super::super::rtreach::system_model::SystemModel;
+use super::dynamics_bicycle::{BicycleModel, BICYCLE_NUM_DIMS as NUM_DIMS};
+use super::super::rtreach::debug::DEBUG;
 
 // simulate dynamics using Euler's method
-pub fn simulate_bicycle(start_point: [f64; NUM_DIMS], heading_input: f64, throttle: f64,
+pub fn simulate_bicycle(system_model: &BicycleModel, start_point: [f64; NUM_DIMS], heading_input: f64, throttle: f64,
     step_size: f64,
     should_stop: fn([f64; NUM_DIMS], f64, &mut f64) -> bool,
     stop_time: &mut f64)
 {
     let mut point: [f64; NUM_DIMS] = std::array::from_fn(|d| start_point[d]);
 
-    let mut rect: HyperRectangle = HyperRectangle::default();
+    let mut rect: HyperRectangle<NUM_DIMS> = HyperRectangle::default();
     let mut time: f64 = 0.0;
 
     loop{
@@ -30,7 +32,7 @@ pub fn simulate_bicycle(start_point: [f64; NUM_DIMS], heading_input: f64, thrott
 
         // euler's method
         for d in 0..NUM_DIMS {
-            let der: f64 = get_derivative_bounds_bicycle(&rect, 2*d, heading_input, throttle);
+            let der: f64 = system_model.get_derivative_bounds(&rect, 2*d, &vec![heading_input, throttle]);
 
             point[d] += step_size * der;
         }

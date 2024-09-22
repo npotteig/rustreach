@@ -66,7 +66,7 @@ pub fn load_wallpoints(filename: &str, print: bool){
     }
 }
 
-pub fn check_safety(rect: &HyperRectangle, cone: &[[f64; 2]; 2]) -> bool {
+pub fn check_safety<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>, cone: &[[f64; 2]; 2]) -> bool {
     let l1: [f64; 2] = [rect.dims[0].min, rect.dims[1].max];
     let r1: [f64; 2] = [rect.dims[0].max, rect.dims[1].min];
 
@@ -84,7 +84,7 @@ pub fn check_safety(rect: &HyperRectangle, cone: &[[f64; 2]; 2]) -> bool {
     false
 }
 
-pub fn check_safety_obstacles(rect: &HyperRectangle) -> bool {
+pub fn check_safety_obstacles<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>) -> bool {
     let mut allowed: bool = true;
 
     let obstacle_count: u32 = *OBSTACLE_COUNT.lock().unwrap();
@@ -115,7 +115,7 @@ pub fn check_safety_obstacles(rect: &HyperRectangle) -> bool {
     allowed
 }
 
-pub fn check_safety_wall(rect: &HyperRectangle) -> bool {
+pub fn check_safety_wall<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>) -> bool {
     let wall_coords_guard: &Option<Vec<Vec<f64>>> = &*WALL_COORDS.lock().unwrap();
     let file_rows: u32 = *FILE_ROWS.lock().unwrap();  // Get the value of file_rows
     

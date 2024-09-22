@@ -1,7 +1,3 @@
-use super::dynamics_bicycle::NUM_DIMS;
-
-pub const NUM_FACES: usize = 2 * NUM_DIMS;
-
 #[derive(Copy, Clone)]
 pub struct Interval {
     pub min: f64, 
@@ -17,16 +13,16 @@ impl Default for Interval {
     }
 }
 
-pub struct HyperPoint {
+pub struct HyperPoint<const NUM_DIMS: usize> {
     dims: [f64; NUM_DIMS],  
 }
 
 #[derive(Copy, Clone)]
-pub struct HyperRectangle {
+pub struct HyperRectangle<const NUM_DIMS: usize> {
     pub dims: [Interval; NUM_DIMS],
 }
 
-impl Default for HyperRectangle {
+impl<const NUM_DIMS: usize> Default for HyperRectangle<NUM_DIMS> {
     fn default() -> Self {
         HyperRectangle {
             dims: [Interval::default(); NUM_DIMS], // Initialize array with default Intervals
@@ -34,11 +30,17 @@ impl Default for HyperRectangle {
     }
 }
 
+impl<const NUM_DIMS: usize> HyperRectangle<NUM_DIMS> {
+    pub fn num_dims(&self) -> usize {
+        NUM_DIMS
+    }
+}
+
 pub fn interval_width(i: &Interval) -> f64 {
     i.max - i.min
 }
 
-pub fn hyperrectangle_max_width(rect: &HyperRectangle) -> f64 {
+pub fn hyperrectangle_max_width<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>) -> f64 {
     let mut rv: f64 = 0.0;
 
     for dim in &rect.dims {
@@ -59,7 +61,7 @@ pub fn hyperrectangle_max_width(rect: &HyperRectangle) -> f64 {
     rv
 }
 
-pub fn hyperrectangle_contains(outside: &HyperRectangle, inside: &HyperRectangle, print_errors: bool) -> bool {
+pub fn hyperrectangle_contains<const NUM_DIMS: usize>(outside: &HyperRectangle<NUM_DIMS>, inside: &HyperRectangle<NUM_DIMS>, print_errors: bool) -> bool {
     let mut rv = true;
 
     for d in 0..NUM_DIMS {
@@ -88,7 +90,7 @@ pub fn hyperrectangle_contains(outside: &HyperRectangle, inside: &HyperRectangle
     rv
 }
 
-pub fn hyperrectangle_grow_to_convex_hull(grower: &mut HyperRectangle, contained: &HyperRectangle) {
+pub fn hyperrectangle_grow_to_convex_hull<const NUM_DIMS: usize>(grower: &mut HyperRectangle<NUM_DIMS>, contained: &HyperRectangle<NUM_DIMS>) {
 
     for d in 0..NUM_DIMS {
         let grower_dim: &mut Interval = &mut grower.dims[d];
@@ -104,7 +106,7 @@ pub fn hyperrectangle_grow_to_convex_hull(grower: &mut HyperRectangle, contained
     }
 }
 
-pub fn print(hyperrectangle: &HyperRectangle) {
+pub fn print<const NUM_DIMS: usize>(hyperrectangle: &HyperRectangle<NUM_DIMS>) {
     // Print the start of the HyperRectangle representation
     print!("[HyperRectangle");
 
@@ -117,12 +119,12 @@ pub fn print(hyperrectangle: &HyperRectangle) {
     println!("]");
 }
 
-pub fn println(hyperrectangle: &HyperRectangle) {
+pub fn println<const NUM_DIMS: usize>(hyperrectangle: &HyperRectangle<NUM_DIMS>) {
     print(hyperrectangle);
     println!();
 }
 
-pub fn hyperrectangle_bloat(out: &mut HyperRectangle, from: [f64; NUM_DIMS], width: f64) {
+pub fn hyperrectangle_bloat<const NUM_DIMS: usize>(out: &mut HyperRectangle<NUM_DIMS>, from: [f64; NUM_DIMS], width: f64) {
     for d in 0..NUM_DIMS {
         out.dims[d].min = from[d] - width;
         out.dims[d].max = from[d] + width;
@@ -142,7 +144,7 @@ mod tests {
 
     #[test]
     fn test_hyperrectangle_max_width() {
-        let r = HyperRectangle {
+        let r = HyperRectangle::<4> {
             dims: [
                 Interval { min: 0.0, max: 1.0 },
                 Interval { min: 0.0, max: 1.0 },
@@ -155,7 +157,7 @@ mod tests {
 
     #[test]
     fn test_hyperrectangle_contains() {
-        let outside = HyperRectangle {
+        let outside = HyperRectangle::<4> {
             dims: [
                 Interval { min: 0.0, max: 1.0 },
                 Interval { min: 0.0, max: 1.0 },
@@ -163,7 +165,7 @@ mod tests {
                 Interval { min: 0.0, max: 1.0 },
             ],
         };
-        let inside = HyperRectangle {
+        let inside = HyperRectangle::<4> {
             dims: [
                 Interval { min: 0.1, max: 0.9 },
                 Interval { min: 0.1, max: 0.9 },
@@ -177,7 +179,7 @@ mod tests {
 
     #[test]
     fn test_hyperrectangle_grow_to_convex_hull() {
-        let mut grower = HyperRectangle {
+        let mut grower = HyperRectangle::<4> {
             dims: [
                 Interval { min: 0.0, max: 1.0 },
                 Interval { min: 0.0, max: 1.0 },
@@ -185,7 +187,7 @@ mod tests {
                 Interval { min: 0.0, max: 1.0 },
             ],
         };
-        let contained = HyperRectangle {
+        let contained = HyperRectangle::<4> {
             dims: [
                 Interval { min: -1.0, max: 2.0 },
                 Interval { min: -1.0, max: 2.0 },
@@ -194,7 +196,7 @@ mod tests {
             ],
         };
         hyperrectangle_grow_to_convex_hull(&mut grower, &contained);
-        for d in 0..NUM_DIMS {
+        for d in 0..grower.num_dims() {
             assert_eq!(grower.dims[d].min, -1.0);
             assert_eq!(grower.dims[d].max, 2.0);
         }
@@ -202,7 +204,7 @@ mod tests {
 
     #[test]
     fn test_hyperrectangle_bloat() {
-        let mut out = HyperRectangle {
+        let mut out = HyperRectangle::<4> {
             dims: [
                 Interval { min: 0.0, max: 0.0 },
                 Interval { min: 0.0, max: 0.0 },
@@ -211,7 +213,7 @@ mod tests {
             ],
         };
         hyperrectangle_bloat(&mut out, [0.0, 0.0, 0.0, 0.0], 1.0);
-        for d in 0..NUM_DIMS {
+        for d in 0..out.num_dims() {
             assert_eq!(out.dims[d].min, -1.0);
             assert_eq!(out.dims[d].max, 1.0);
         }

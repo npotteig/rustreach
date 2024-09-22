@@ -1,9 +1,8 @@
-use super::dynamics_bicycle::NUM_DIMS;
+use super::dynamics_bicycle::{BicycleModel, BICYCLE_NUM_DIMS as NUM_DIMS};
 use super::simulate_bicycle::simulate_bicycle;
-use super::geometry::HyperRectangle;
-use super::bicycle_safety::{check_safety_obstacles, check_safety_wall};
-use super::face_lift::LiftingSettings;
-use super::face_lift_bicycle::face_lifting_iterative_improvement_bicycle;
+use super::super::rtreach::geometry::HyperRectangle;
+use super::super::rtreach::obstacle_safety::{check_safety_obstacles, check_safety_wall};
+use super::super::rtreach::face_lift::{LiftingSettings, face_lifting_iterative_improvement};
 // a note from the f1tenth simulator 
 // the car is 0.5 m long in the x direction 
 // 0.3 long in the y direction
@@ -21,17 +20,17 @@ pub fn should_stop(state: [f64; NUM_DIMS], sim_time: f64, stop_time: &mut f64) -
     rv
 }
 
-pub fn get_simulated_safe_time(start: [f64; NUM_DIMS], heading_input: f64, throttle: f64) -> f64 {
+pub fn get_simulated_safe_time(system_model: &BicycleModel, start: [f64; NUM_DIMS], heading_input: f64, throttle: f64) -> f64 {
     let step_size: f64 = 0.02;
     let mut rv: f64 = 0.0;
 
-    simulate_bicycle(start, heading_input, throttle, step_size, should_stop, &mut rv);
+    simulate_bicycle(system_model, start, heading_input, throttle, step_size, should_stop, &mut rv);
 
     rv
 }
 
 // called on states reached during the computation
-pub fn intermediate_state(r: &mut HyperRectangle) -> bool {
+pub fn intermediate_state(r: &mut HyperRectangle<NUM_DIMS>) -> bool {
     let mut allowed = true;
     //const REAL FIFTEEN_DEGREES_IN_RADIANS = 0.2618;
 
@@ -63,12 +62,12 @@ pub fn intermediate_state(r: &mut HyperRectangle) -> bool {
 
 // This function enumerates all of the corners of the current HyperRectangle and 
 // returns whether or not any of the points lies outside of the ellipsoid
-pub fn final_state(r: &mut HyperRectangle) -> bool {
+pub fn final_state(r: &mut HyperRectangle<NUM_DIMS>) -> bool {
     intermediate_state(r)
 }
 
-pub fn run_reachability_bicycle(start: [f64; NUM_DIMS], sim_time: f64, wall_time_ms: u64, start_ms: u64, heading_input: f64, throttle: f64) -> bool {
-    let mut set: LiftingSettings = LiftingSettings {
+pub fn run_reachability_bicycle(system_model: &BicycleModel, start: [f64; NUM_DIMS], sim_time: f64, wall_time_ms: u64, start_ms: u64, heading_input: f64, throttle: f64) -> bool {
+    let mut set: LiftingSettings<NUM_DIMS> = LiftingSettings::<NUM_DIMS> {
         init: HyperRectangle::default(),
         reach_time: sim_time,
         initial_step_size: sim_time * 0.10,
@@ -83,5 +82,5 @@ pub fn run_reachability_bicycle(start: [f64; NUM_DIMS], sim_time: f64, wall_time
         set.init.dims[d].max = start[d];
     }
 
-    face_lifting_iterative_improvement_bicycle(start_ms, &mut set, heading_input, throttle)
+    face_lifting_iterative_improvement(system_model, start_ms, &mut set, &vec![heading_input, throttle])
 }

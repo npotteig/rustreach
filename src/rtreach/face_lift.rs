@@ -1,14 +1,33 @@
+use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
-use super::face_lift::{LiftingSettings, ITERATIONS_AT_QUIT};
+use lazy_static::lazy_static;
 use super::geometry::*;
-use super::dynamics_bicycle::{get_derivative_bounds_bicycle, NUM_DIMS};
+use super::system_model::SystemModel;
 use super::util::*;
 use super::debug::DEBUG;
+
+lazy_static! {
+    pub static ref ITERATIONS_AT_QUIT: Mutex<u64> = Mutex::new(0); // lazy_
+}
+
+#[derive(Copy, Clone)]
+pub struct LiftingSettings<const NUM_DIMS: usize> {
+    pub init: HyperRectangle<NUM_DIMS>,                // initial rectangle
+    pub reach_time: f64,                     // total reach time
+    pub initial_step_size: f64,              // the initial size of the steps to use
+    pub max_rect_width_before_error: f64,    // maximum allowed rectangle size
+    pub max_runtime_milliseconds: u64,       // maximum runtime in milliseconds
+    pub reached_at_intermediate_time: Option<fn(&mut HyperRectangle<NUM_DIMS>) -> bool>, // callback for intermediate time
+    pub reached_at_final_time: Option<fn(&mut HyperRectangle<NUM_DIMS>) -> bool>,        // callback for final time
+    pub restarted_computation: Option<fn()>,         // callback for restarted computation
+}
 
 // Constants necessary to guarantee loop termination.
 // These bound the values of the derivatives
 pub const MAX_DER_B: f64 = 99999.0;
 pub const MIN_DER_B: f64 = -99999.0;
+
+
 
 // make a face's neighborhood of a given width
 // At each dimension, there are two faces corresponding to that dimension, minimum_face and maximum_face
@@ -16,11 +35,11 @@ pub const MIN_DER_B: f64 = -99999.0;
 // For two dimensional Rectangle:     0 <= x1 <= 2; 1 <= x2 <= 3: at the dimension 1 (i.e., x1 axis) the minimum face
 // is a line x1 = 0, 1 <= x2 <= 3 and the maximum face is a line x1 = 2, 1 <= x2 <= 3
 
-fn make_neighborhood_rect_bicycle(
-    out: &mut HyperRectangle,
+fn make_neighborhood_rect<const NUM_DIMS: usize>(
+    out: &mut HyperRectangle<NUM_DIMS>,
     face_index: usize,
-    bloated_rect: &HyperRectangle,
-    original_rect: &HyperRectangle,
+    bloated_rect: &HyperRectangle<NUM_DIMS>,
+    original_rect: &HyperRectangle<NUM_DIMS>,
     neb_width: f64,
 ) {
     *out = *bloated_rect; // Clone the bloated rectangle into out
@@ -61,32 +80,32 @@ fn make_neighborhood_rect_bicycle(
 // et (error tracker) is set if you want to track the sources of errors, can be null
 // returns time elapsed
 
-fn lift_single_rect_bicycle(rect: &mut HyperRectangle, step_size: f64, time_remaining: f64, heading_input: f64, throttle: f64) -> f64 {
+fn lift_single_rect<const NUM_DIMS: usize, T: SystemModel<NUM_DIMS>>(system_model: &T, rect: &mut HyperRectangle<NUM_DIMS>, step_size: f64, time_remaining: f64, ctrl_input: &Vec<f64>, settings: &LiftingSettings<NUM_DIMS>) -> f64 {
     // Create a copy of the rectangle for face-lifting operations
-    let mut bloated_rect: HyperRectangle = *rect;
+    let mut bloated_rect: HyperRectangle<NUM_DIMS> = *rect;
     
     // Create an array to store neighborhood widths
-    let mut neb_width = [0.0; NUM_FACES];
+    let mut neb_width = vec![0.0; system_model.num_faces()];
 
     let mut need_recompute: bool = true;
     let mut min_neb_cross_time: f64 = 0.0;
-    let mut ders = [0.0; NUM_FACES]; // array that stores each derivative for each face
+    let mut ders = vec![0.0; system_model.num_faces()]; // array that stores each derivative for each face
     
     while need_recompute {
         need_recompute = false;
         min_neb_cross_time = f64::MAX;
     
-        for f in 0..NUM_FACES {
+        for f in 0..system_model.num_faces() {
             let dim: usize = f / 2;
             let is_min: bool = (f % 2) == 0;
 
-            let mut face_neb_rect: HyperRectangle = HyperRectangle::default();
+            let mut face_neb_rect: HyperRectangle<NUM_DIMS> = HyperRectangle::<NUM_DIMS>::default();
 
             // make candidate neighborhood
-            make_neighborhood_rect_bicycle(&mut face_neb_rect, f, &bloated_rect, rect, neb_width[f]);
+            make_neighborhood_rect::<NUM_DIMS>(&mut face_neb_rect, f, &bloated_rect, rect, neb_width[f]);
 
             // test derivative inside neighborhood
-            let mut der: f64 = get_derivative_bounds_bicycle(&face_neb_rect, f, heading_input, throttle);
+            let mut der: f64 = system_model.get_derivative_bounds(&face_neb_rect, f, ctrl_input);
 
             // so we cap the derivative at 999999 and min at the negative of that
             if der > MAX_DER_B {
@@ -152,7 +171,7 @@ fn lift_single_rect_bicycle(rect: &mut HyperRectangle, step_size: f64, time_rema
     // just as a note the minTime to cross is the prevNebwidth / der
 	// the nebWidth btw is stepSize * der
     if min_neb_cross_time * 2.0 < step_size {
-        error_exit("minNebCrossTime is less than half of step size.");
+        error_exit("minNebCrossTime is less than half of step size.", settings, true);
     }
 
     ////////////////////////////////////////
@@ -175,17 +194,17 @@ fn lift_single_rect_bicycle(rect: &mut HyperRectangle, step_size: f64, time_rema
     } 
 
     if !hyperrectangle_contains(&bloated_rect, rect, true){
-        error_exit("lifted rect is outside of bloated rect");
+        error_exit("lifted rect is outside of bloated rect", &settings, true);
     }
 
     time_to_elapse
 }
 
-pub fn face_lifting_iterative_improvement_bicycle(
+pub fn face_lifting_iterative_improvement<const NUM_DIMS: usize, T: SystemModel<NUM_DIMS>>(
+    system_model: &T,
     start_ms: u64,
-    settings: &mut LiftingSettings,
-    heading_input: f64,
-    throttle: f64
+    settings: &mut LiftingSettings<NUM_DIMS>,
+    ctrl_input: &Vec<f64>,
 ) -> bool {
     let mut rv = false;
     let mut last_iteration_safe = false;
@@ -193,7 +212,6 @@ pub fn face_lifting_iterative_improvement_bicycle(
     let now: SystemTime = SystemTime::now();
     let start: Duration = now.duration_since(UNIX_EPOCH).unwrap();
     let mut elapsed_total: u64 = 0;
-    set_error_print_params(settings);
 
     // Get the settings from the facelifting settings
     let mut step_size: f64 = settings.initial_step_size;
@@ -228,10 +246,10 @@ pub fn face_lifting_iterative_improvement_bicycle(
         let mut tracked_rect = settings.init;
 
 		// Create a new hyperrectangle
-		let mut hull: HyperRectangle = HyperRectangle::default();
+		let mut hull: HyperRectangle<NUM_DIMS> = HyperRectangle::default();
 
 		// I want to visualize an over-approximation of the over-all reachset too
-        let mut total_hull: HyperRectangle = tracked_rect;
+        let mut total_hull: HyperRectangle<NUM_DIMS> = tracked_rect;
 
         // compute reachability up to split time
 		while safe && time_remaining > 0.0 {
@@ -242,7 +260,7 @@ pub fn face_lifting_iterative_improvement_bicycle(
             }
 
             // debug changed so error tracker is always passed in (see note)
-            let time_elapsed: f64 = lift_single_rect_bicycle(&mut tracked_rect, step_size, time_remaining, heading_input, throttle);
+            let time_elapsed: f64 = lift_single_rect::<NUM_DIMS, T>(system_model, &mut tracked_rect, step_size, time_remaining, &ctrl_input, settings);
 
             // if we're not even close to the desired step size
             if hyperrectangle_max_width(&tracked_rect) > settings.max_rect_width_before_error {
