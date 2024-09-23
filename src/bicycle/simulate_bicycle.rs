@@ -8,9 +8,14 @@ use super::super::rtreach::debug::DEBUG;
 pub fn simulate_bicycle(system_model: &BicycleModel, start_point: [f64; NUM_DIMS], heading_input: f64, throttle: f64,
     step_size: f64,
     should_stop: fn([f64; NUM_DIMS], f64, &mut f64) -> bool,
-    stop_time: &mut f64)
+    stop_time: &mut f64,
+    store_state: bool,
+    storage_vec: &mut Vec<[f64; NUM_DIMS]>)
 {
     let mut point: [f64; NUM_DIMS] = std::array::from_fn(|d| start_point[d]);
+    if store_state {
+        storage_vec.push(point);
+    }
 
     let mut rect: HyperRectangle<NUM_DIMS> = HyperRectangle::default();
     let mut time: f64 = 0.0;
@@ -36,7 +41,9 @@ pub fn simulate_bicycle(system_model: &BicycleModel, start_point: [f64; NUM_DIMS
 
             point[d] += step_size * der;
         }
-
+        if store_state {
+            storage_vec.push(point);
+        }
         time += step_size;
     }
 

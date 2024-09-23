@@ -17,9 +17,9 @@ pub struct LiftingSettings<const NUM_DIMS: usize> {
     pub initial_step_size: f64,              // the initial size of the steps to use
     pub max_rect_width_before_error: f64,    // maximum allowed rectangle size
     pub max_runtime_milliseconds: u64,       // maximum runtime in milliseconds
-    pub reached_at_intermediate_time: Option<fn(&mut HyperRectangle<NUM_DIMS>) -> bool>, // callback for intermediate time
-    pub reached_at_final_time: Option<fn(&mut HyperRectangle<NUM_DIMS>) -> bool>,        // callback for final time
-    pub restarted_computation: Option<fn()>,         // callback for restarted computation
+    pub reached_at_intermediate_time: Option<fn(&mut HyperRectangle<NUM_DIMS>, store_rect: bool, storage_vec: &mut Vec<HyperRectangle<NUM_DIMS>>) -> bool>, // callback for intermediate time
+    pub reached_at_final_time: Option<fn(&mut HyperRectangle<NUM_DIMS>, store_rect: bool, storage_vec: &mut Vec<HyperRectangle<NUM_DIMS>>) -> bool>,        // callback for final time
+    pub restarted_computation: Option<fn(store_rect: bool, storage_vec: &mut Vec<HyperRectangle<NUM_DIMS>>)>,         // callback for restarted computation
 }
 
 // Constants necessary to guarantee loop termination.
@@ -205,6 +205,9 @@ pub fn face_lifting_iterative_improvement<const NUM_DIMS: usize, T: SystemModel<
     start_ms: u64,
     settings: &mut LiftingSettings<NUM_DIMS>,
     ctrl_input: &Vec<f64>,
+    store_rect: bool,
+    storage_vec: &mut Vec<HyperRectangle<NUM_DIMS>>,
+    fixed_step: bool,
 ) -> bool {
     let mut rv = false;
     let mut last_iteration_safe = false;
@@ -236,7 +239,7 @@ pub fn face_lifting_iterative_improvement<const NUM_DIMS: usize, T: SystemModel<
 
         // this is primarily used in the plotting functions, so that we only plot the last iteration
         if let Some(restart_func) = settings.restarted_computation {
-            restart_func();
+            restart_func(store_rect, storage_vec);
         }
 
         // This function gets the reachtime passed from the settings
@@ -274,13 +277,13 @@ pub fn face_lifting_iterative_improvement<const NUM_DIMS: usize, T: SystemModel<
                 hyperrectangle_grow_to_convex_hull(&mut total_hull, &tracked_rect);
                 
                 // println!("safe1: {}", safe);
-                safe = safe && reached_at_intermediate_time(&mut hull);
+                safe = safe && reached_at_intermediate_time(&mut hull, store_rect, storage_vec);
                 // println!("safe2: {}", safe);
             }
 
             if time_elapsed == time_remaining{
                 if let Some(reached_at_final_time) = settings.reached_at_final_time {
-                    safe = safe && reached_at_final_time(&mut tracked_rect);
+                    safe = safe && reached_at_final_time(&mut tracked_rect, store_rect, storage_vec);
                 }
             }
 
@@ -320,8 +323,21 @@ pub fn face_lifting_iterative_improvement<const NUM_DIMS: usize, T: SystemModel<
                     println!("Quitting from runtime maxed out");
                     println(&tracked_rect);
                 }
-                rv = last_iteration_safe;
+
+                if let Some(reached_at_final_time) = settings.reached_at_final_time {
+                    reached_at_final_time(&mut total_hull, store_rect, storage_vec);
+                }
+                if iter > 1 {
+                    rv = last_iteration_safe;
+                } else {
+                    rv = safe;
+                }
                 break;
+            }
+            if !safe{
+                if let Some(reached_at_final_time) = settings.reached_at_final_time {
+                    reached_at_final_time(&mut total_hull, store_rect, storage_vec);
+                }
             }
         } else {
             if settings.max_runtime_milliseconds == 0 {
@@ -336,7 +352,10 @@ pub fn face_lifting_iterative_improvement<const NUM_DIMS: usize, T: SystemModel<
 
         
 		last_iteration_safe = safe;
-
+        if fixed_step{
+            rv = safe;
+            break;
+        }
 		// apply error-reducing strategy
 		step_size /= 2.0;
 

@@ -108,7 +108,7 @@ pub fn check_safety_obstacles<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_D
             }
         },
         None => {
-            eprintln!("No obstacles loaded");
+            allowed = true;
         }
     }
     
@@ -140,8 +140,7 @@ pub fn check_safety_wall<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>)
             }
         },
         None => {
-            eprintln!("No wall coordinates loaded");
-            safe = false;
+            safe = true;
         }
     }
     

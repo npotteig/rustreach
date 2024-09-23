@@ -1,12 +1,55 @@
 use std::sync::Mutex;
+use csv::Writer;
 use lazy_static::lazy_static;
 use super::geometry::println;
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
 use super::face_lift::LiftingSettings;
+use super::geometry::HyperRectangle;
 
 lazy_static! {
     pub static ref INIIALIZED: Mutex<bool> = Mutex::new(false);
     pub static ref START_SEC: Mutex<u64> = Mutex::new(0);
+}
+
+pub fn save_states_to_csv<const NUM_DIMS: usize>(filename: &str, data: &Vec<[f64; NUM_DIMS]>) {
+    let mut wtr = Writer::from_path(filename).unwrap();
+
+    let mut header = vec![];
+    for d in 0..NUM_DIMS {
+        header.push(format!("dim{}", d));
+    }
+    let _ = wtr.write_record(&header);
+
+    for r in data {
+        let mut record = vec![];
+        for d in 0..NUM_DIMS {
+            record.push(format!("{}", r[d]));
+        }
+        let _ = wtr.write_record(&record);
+    }
+    wtr.flush().unwrap();
+}
+
+pub fn save_rects_to_csv<const NUM_DIMS: usize>(filename: &str, data: &Vec<HyperRectangle<NUM_DIMS>>) {
+    let mut wtr = Writer::from_path(filename).unwrap();
+    // Create a single header
+    let mut header = vec![];
+    for d in 0..NUM_DIMS {
+        header.push(format!("min{}", d));
+        header.push(format!("max{}", d));
+    }
+    let _ = wtr.write_record(&header);
+
+    // Write each HyperRectangle's min and max values
+    for r in data {
+        let mut record = vec![];
+        for d in 0..NUM_DIMS {
+            record.push(format!("{}", r.dims[d].min));
+            record.push(format!("{}", r.dims[d].max));
+        }
+        let _ = wtr.write_record(&record);
+    }
+    wtr.flush().unwrap();
 }
 
 
