@@ -3,7 +3,7 @@
 # Running Example
 
 ```
-cargo run --release -- 10 2.0 0.1 0.0 0.0 0.0 0.0 1.0 0.2666 false true
+cargo run --release -- 100 2.0 0.2 0.0 0.0 0.0 0.0 1.0 0.2666 true false
 ``` 
 
 ```

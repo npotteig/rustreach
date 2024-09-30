@@ -1,5 +1,6 @@
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
+use std::vec;
 use lazy_static::lazy_static;
 use super::geometry::*;
 use super::system_model::SystemModel;
@@ -27,7 +28,63 @@ pub struct LiftingSettings<const NUM_DIMS: usize> {
 pub const MAX_DER_B: f64 = 99999.0;
 pub const MIN_DER_B: f64 = -99999.0;
 
+fn get_rk4_rect_terms<const NUM_DIMS: usize, T: SystemModel<NUM_DIMS>>(
+    system_model: &T,
+    rect: &HyperRectangle<NUM_DIMS>,
+    face_index: usize,
+    ctrl_input: &Vec<f64>,
+    step_size: f64,
+) -> f64 {
+    let dim: usize = face_index / 2;
+    let is_min: bool = (face_index % 2) == 0;
+    let mut k1 = vec![0.0; NUM_DIMS*2];
+    let mut rect_k2 = *rect;
+    for d in 0..NUM_DIMS{
+        let der1 = system_model.get_derivative_bounds(rect, 2*d, ctrl_input);
+        let der2 = system_model.get_derivative_bounds(rect, 2*d+1, ctrl_input);
+        k1[2*d] = der1;
+        k1[2*d+1] = der2;
+        rect_k2.dims[d].min += der1 * step_size / 2.0;
+        rect_k2.dims[d].max += der2 * step_size / 2.0;
+    }
 
+    let mut k2 = vec![0.0; NUM_DIMS*2];
+    let mut rect_k3 = *rect;
+    for d in 0..NUM_DIMS{
+        let der1 = system_model.get_derivative_bounds(&rect_k2, 2*d, ctrl_input);
+        let der2 = system_model.get_derivative_bounds(&rect_k2, 2*d+1, ctrl_input);
+        k2[2*d] = der1;
+        k2[2*d+1] = der2;
+        rect_k3.dims[d].min += der1 * step_size / 2.0;
+        rect_k3.dims[d].max += der2 * step_size / 2.0;
+    }
+
+    let mut k3 = vec![0.0; NUM_DIMS*2];
+    let mut rect_k4 = *rect;
+    for d in 0..NUM_DIMS{
+        let der1 = system_model.get_derivative_bounds(&rect_k3, 2*d, ctrl_input);
+        let der2 = system_model.get_derivative_bounds(&rect_k3, 2*d+1, ctrl_input);
+        k3[2*d] = der1;
+        k3[2*d+1] = der2;
+        rect_k4.dims[d].min += der1 * step_size;
+        rect_k4.dims[d].max += der2 * step_size;
+    }
+
+    let mut k4 = vec![0.0; NUM_DIMS*2];
+    for d in 0..NUM_DIMS{
+        let der1 = system_model.get_derivative_bounds(&rect_k4, 2*d, ctrl_input);
+        let der2 = system_model.get_derivative_bounds(&rect_k4, 2*d+1, ctrl_input);
+        k4[2*d] = der1;
+        k4[2*d+1] = der2;
+    }
+
+    if is_min{
+        (step_size / 6.0) * (k1[2*dim] + 2.0 * k2[2*dim] + 2.0 * k3[2*dim] + k4[2*dim])
+    }
+    else{
+        (step_size / 6.0) * (k1[2*dim+1] + 2.0 * k2[2*dim+1] + 2.0 * k3[2*dim+1] + k4[2*dim+1])
+    }
+}
 
 // make a face's neighborhood of a given width
 // At each dimension, there are two faces corresponding to that dimension, minimum_face and maximum_face
@@ -89,11 +146,14 @@ fn lift_single_rect<const NUM_DIMS: usize, T: SystemModel<NUM_DIMS>>(system_mode
 
     let mut need_recompute: bool = true;
     let mut min_neb_cross_time: f64 = 0.0;
+    let mut min_neb_cross_time_rk4: f64 = 0.0;
     let mut ders = vec![0.0; system_model.num_faces()]; // array that stores each derivative for each face
-    
+    let mut face_rects = vec![HyperRectangle::<NUM_DIMS>::default(); system_model.num_faces()];
+    // println!("Called");
     while need_recompute {
         need_recompute = false;
         min_neb_cross_time = f64::MAX;
+        min_neb_cross_time_rk4 = f64::MAX;
     
         for f in 0..system_model.num_faces() {
             let dim: usize = f / 2;
@@ -106,6 +166,7 @@ fn lift_single_rect<const NUM_DIMS: usize, T: SystemModel<NUM_DIMS>>(system_mode
 
             // test derivative inside neighborhood
             let mut der: f64 = system_model.get_derivative_bounds(&face_neb_rect, f, ctrl_input);
+            let mut der_rk4_term = get_rk4_rect_terms(system_model, &face_neb_rect, f, ctrl_input, step_size);
 
             // so we cap the derivative at 999999 and min at the negative of that
             if der > MAX_DER_B {
@@ -115,7 +176,10 @@ fn lift_single_rect<const NUM_DIMS: usize, T: SystemModel<NUM_DIMS>>(system_mode
             }
 
             let prev_neb_width: f64 = neb_width[f];
-            let mut new_neb_width: f64 = der * step_size;
+            let mut new_neb_width: f64 = der_rk4_term;
+            // if !is_min && dim == 2{
+            //     println!("der: {}, new_neb_width: {}", der*step_size, new_neb_width);
+            // }
 
             // check if it's growing outward
             let grew_outward = (is_min && new_neb_width < 0.0) || (!is_min && new_neb_width > 0.0);
@@ -125,6 +189,7 @@ fn lift_single_rect<const NUM_DIMS: usize, T: SystemModel<NUM_DIMS>>(system_mode
             if !grew_outward && prev_grew_outward {
                 new_neb_width = 0.0;
                 der = 0.0;
+                der_rk4_term = 0.0;
             }
 
             // check if recomputation is needed
@@ -143,10 +208,14 @@ fn lift_single_rect<const NUM_DIMS: usize, T: SystemModel<NUM_DIMS>>(system_mode
                     bloated_rect.dims[dim].min = rect.dims[dim].min + neb_width[f];
                 } else if !is_min && neb_width[f] > 0.0 {
                     bloated_rect.dims[dim].max = rect.dims[dim].max + neb_width[f];
+                    // if dim == 2{
+                    //     println!("bloated_rect: {}", bloated_rect.dims[dim].max);
+                    // }
                 }
 
             } else {
                 // last iteration, compute min time to cross face
+                // println!("{}, {}, {}, {}", prev_neb_width, new_neb_width, prev_neb_width < new_neb_width, step_size);
 
                 // clamp derivative if it changed direction
 				// this means along the face it's inward, but in the neighborhood it's outward
@@ -163,6 +232,21 @@ fn lift_single_rect<const NUM_DIMS: usize, T: SystemModel<NUM_DIMS>>(system_mode
                     }
                 }
 
+                if der_rk4_term < 0.0 && prev_neb_width > 0.0 {
+                    der_rk4_term = 0.0;
+                } else if der_rk4_term > 0.0 && prev_neb_width < 0.0 {
+                    der_rk4_term = 0.0;
+                }
+
+                if der_rk4_term != 0.0 {
+                    let cross_time_rk4: f64 = prev_neb_width * step_size / der_rk4_term;
+                    if cross_time_rk4 < min_neb_cross_time_rk4 {
+                        min_neb_cross_time_rk4 = cross_time_rk4;
+                    }
+                }
+
+                
+                face_rects[f] = face_neb_rect;
                 ders[f] = der;
             }
         }
@@ -177,7 +261,9 @@ fn lift_single_rect<const NUM_DIMS: usize, T: SystemModel<NUM_DIMS>>(system_mode
     ////////////////////////////////////////
 	// lift each face by the minimum time //
 
-    let mut time_to_elapse: f64 = min_neb_cross_time;
+    let mut time_to_elapse: f64 = min_neb_cross_time_rk4;
+    // println!("min_neb_cross_time: {}", min_neb_cross_time);
+    // println!("min_neb_cross_time_rk4: {}", min_neb_cross_time_rk4);
 
 
 	// subtract a tiny amount time due to multiplication / division rounding
@@ -189,8 +275,20 @@ fn lift_single_rect<const NUM_DIMS: usize, T: SystemModel<NUM_DIMS>>(system_mode
 
     // do the lifting
     for d in 0..NUM_DIMS{
-        rect.dims[d].min += ders[2*d] * time_to_elapse;
-        rect.dims[d].max += ders[2*d+1] * time_to_elapse;
+        if ders[2*d] != 0.0{
+            let rk4_min = get_rk4_rect_terms(system_model, &face_rects[2*d], 2*d, ctrl_input, time_to_elapse);
+            rect.dims[d].min += rk4_min;
+        }
+
+        if ders[2*d+1] != 0.0{
+            let rk4_max = get_rk4_rect_terms(system_model, &face_rects[2*d+1], 2*d+1, ctrl_input, time_to_elapse);
+            // if d == 2{
+            //     // let temp = get_rk4_rect_terms(system_model, &face_rects[2*d+1], 2*d+1, ctrl_input, min_neb_cross_time_rk4);
+            //     println!("rk4_max: {}, der {}", rk4_max, ders[2*d+1]*time_to_elapse);
+            //     // println!("temp: {}", temp);
+            // }
+            rect.dims[d].max += rk4_max;
+        }
     } 
 
     if !hyperrectangle_contains(&bloated_rect, rect, true){

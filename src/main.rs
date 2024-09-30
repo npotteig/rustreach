@@ -54,7 +54,7 @@ fn main() {
     let store_state: bool = true;
     let (_, storage_states) = get_simulated_safe_time(&bicycle_model, start_state, delta, u, store_state);
     println!("Number of States: {}\n", storage_states.len());
-    save_states_to_csv(STATES_FILE_PATH, &storage_states);
+    // save_states_to_csv(STATES_FILE_PATH, &storage_states);
 
     // location of obstacles in our scenario
     // load the wall points into the global variable
@@ -81,7 +81,7 @@ fn main() {
                                                                                        store_rects, 
                                                                                        fixed_step);
     println!("Number of Rectangles: {}\n", storage_rects.len());
-    save_rects_to_csv(RECTS_FILE_PATH, &storage_rects);
+    // save_rects_to_csv(RECTS_FILE_PATH, &storage_rects);
 
     //int runtimeMs = 20; // run for 20 milliseconds
     if DEBUG {
