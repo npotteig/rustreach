@@ -1,5 +1,5 @@
-mod rtreach;
-mod bicycle;
+use std::env;
+use std::path::{Path, PathBuf};
 
 use rtreach::debug::DEBUG;
 use rtreach::face_lift::ITERATIONS_AT_QUIT;
@@ -12,6 +12,13 @@ const OBS_FILE_PATH: &str = "data/porto_obstacles.txt";
 const STATES_FILE_PATH: &str = "data/porto_states.csv";
 const RECTS_FILE_PATH: &str = "data/porto_rects.csv";
 fn main() {
+    // Get the current working directory
+    let current_dir = env::current_dir().expect("Failed to get current directory");
+
+    // Go two directories up
+    let parent_dir = current_dir.parent().unwrap();
+    let obs_file_path = parent_dir.join(OBS_FILE_PATH);
+
     let args: Vec<String> = std::env::args().collect();
     if DEBUG {
         println!("started");
@@ -54,7 +61,7 @@ fn main() {
     let store_state: bool = true;
     let (_, storage_states) = get_simulated_safe_time(&bicycle_model, start_state, delta, u, store_state);
     println!("Number of States: {}\n", storage_states.len());
-    save_states_to_csv(STATES_FILE_PATH, &storage_states);
+    // save_states_to_csv(STATES_FILE_PATH, &storage_states);
 
     // location of obstacles in our scenario
     // load the wall points into the global variable
@@ -62,7 +69,7 @@ fn main() {
         let num_obstacles: u32 = 5;
         let points: [[f64; 2]; 5] = [[2.0,2.0],[4.7,2.7],[11.36,-1.46],[3.0,6.4],[-9.64,2.96]];
         allocate_obstacles(num_obstacles, &points);
-        load_wallpoints(OBS_FILE_PATH, true);
+        load_wallpoints(obs_file_path.to_str().unwrap(), true);
     }
 
     // sim time
@@ -81,7 +88,7 @@ fn main() {
                                                                                        store_rects, 
                                                                                        fixed_step);
     println!("Number of Rectangles: {}\n", storage_rects.len());
-    save_rects_to_csv(RECTS_FILE_PATH, &storage_rects);
+    // save_rects_to_csv(RECTS_FILE_PATH, &storage_rects);
 
     //int runtimeMs = 20; // run for 20 milliseconds
     if DEBUG {

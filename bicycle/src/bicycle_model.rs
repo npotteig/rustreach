@@ -1,8 +1,8 @@
 use super::dynamics_bicycle::{BicycleModel, BICYCLE_NUM_DIMS as NUM_DIMS};
 use super::simulate_bicycle::simulate_bicycle;
-use super::super::rtreach::geometry::HyperRectangle;
-use super::super::rtreach::obstacle_safety::{check_safety_obstacles, check_safety_wall};
-use super::super::rtreach::face_lift::{LiftingSettings, face_lifting_iterative_improvement};
+use rtreach::geometry::HyperRectangle;
+use rtreach::obstacle_safety::{check_safety_obstacles, check_safety_wall};
+use rtreach::face_lift::{LiftingSettings, face_lifting_iterative_improvement};
 // a note from the f1tenth simulator 
 // the car is 0.5 m long in the x direction 
 // 0.3 long in the y direction

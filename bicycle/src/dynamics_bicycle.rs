@@ -1,6 +1,6 @@
-use super::super::rtreach::geometry::*;
-use super::super::rtreach::interval::*;
-use super::super::rtreach::system_model::SystemModel;
+use rtreach::geometry::*;
+use rtreach::interval::*;
+use rtreach::system_model::SystemModel;
 
 pub const BICYCLE_NUM_DIMS: usize = 4;
 

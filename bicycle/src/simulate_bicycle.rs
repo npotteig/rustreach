@@ -1,8 +1,8 @@
 // use super::dynamics_bicycle::{NUM_DIMS, get_derivative_bounds_bicycle};
-use super::super::rtreach::geometry::HyperRectangle;
-use super::super::rtreach::system_model::SystemModel;
+use rtreach::geometry::HyperRectangle;
+use rtreach::system_model::SystemModel;
 use super::dynamics_bicycle::{BicycleModel, BICYCLE_NUM_DIMS as NUM_DIMS};
-use super::super::rtreach::debug::DEBUG;
+use rtreach::debug::DEBUG;
 
 // simulate dynamics using Euler's method
 pub fn simulate_bicycle(system_model: &BicycleModel, start_point: [f64; NUM_DIMS], heading_input: f64, throttle: f64,
