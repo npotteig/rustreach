@@ -51,6 +51,15 @@ impl SystemModel<BICYCLE_NUM_DIMS> for BicycleModel {
     ) -> f64 {
         _get_derivative_bounds_bicycle(rect, face_index, ctrl_inputs[0], ctrl_inputs[1])
     }
+
+    fn get_derivative_bounds_rect(
+            &self,
+            rect: &HyperRectangle<BICYCLE_NUM_DIMS>,
+            ctrl_inputs: &Vec<f64>,
+    ) -> HyperRectangle<BICYCLE_NUM_DIMS> {
+        _get_derivative_bounds_bicycle_rect(rect, ctrl_inputs[0], ctrl_inputs[1])
+    }
+    
 }
 
 // implement the derivative using interval arithmetic
@@ -114,4 +123,42 @@ fn _get_derivative_bounds_bicycle(
     } else {
         rv.max
     }
+}
+
+// implement the derivative using interval arithmetic
+fn _get_derivative_bounds_bicycle_rect(
+    rect: &HyperRectangle<BICYCLE_NUM_DIMS>,
+    heading_input: f64,
+    throttle: f64,
+) -> HyperRectangle<BICYCLE_NUM_DIMS> {
+    let u: f64 = throttle;
+    let delta: f64 = heading_input;
+    let ca: f64 = 1.9569;      // 1.633
+    let cm: f64 = 0.0342;      // 0.2
+    let ch: f64 = -37.1967;    // 4
+    let lf: f64 = 0.225;
+    let lr: f64 = 0.225;
+
+    // Interval rv.min = rv.max = 0
+    let v: Interval = rect.dims[2];
+    let theta: Interval = rect.dims[3];
+
+    // beta = arctan(lr * tan(delta) / (lf + lr))
+    let mut out = HyperRectangle::<BICYCLE_NUM_DIMS>::default();
+    out.dims[0] = mul_interval(v, cos_interval(theta));
+    out.dims[1] = mul_interval(v, sin_interval(theta));
+
+    let a: Interval = mul_interval(v, new_interval_v(-ca));
+    let b: Interval = mul_interval(new_interval_v(ca), new_interval_v(cm));
+    let c: Interval = sub_interval(new_interval_v(u), new_interval_v(ch));
+    let d: Interval = mul_interval(b, c);
+    out.dims[2] = add_interval(a, d);
+
+    let mult: Interval = new_interval_v(1.0 / (lf + lr));
+    let a: Interval = mul_interval(v, mult);
+    let delt: Interval = new_interval_v(delta);
+    let tan: Interval = div_interval(sin_interval(delt), cos_interval(delt));
+    out.dims[3] = mul_interval(a, tan);
+
+    out
 }

@@ -7,6 +7,12 @@ pub trait SystemModel<const NUM_DIMS: usize> {
         ctrl_inputs: &Vec<f64>,
     ) -> f64;
 
+    fn get_derivative_bounds_rect(
+        &self,
+        rect: &HyperRectangle<NUM_DIMS>,
+        ctrl_inputs: &Vec<f64>,
+    ) -> HyperRectangle<NUM_DIMS>;
+
     fn num_dims(&self) -> usize {
         NUM_DIMS
     }
