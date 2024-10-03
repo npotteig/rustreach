@@ -1,0 +1,8 @@
+[package]
+name = "bicycle_simple_ctrl"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rtreach = { path = "../../rtreach" }
+bicycle = { path = "../../bicycle" }

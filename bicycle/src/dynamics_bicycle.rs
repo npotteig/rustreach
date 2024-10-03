@@ -10,7 +10,7 @@ pub const BICYCLE_NUM_DIMS: usize = 4;
 // x' = v * cos(theta + beta)
 // y' = v * sin(theta + beta)
 // v' = -ca * v + ca*cm*(u - ch)
-// theta' = v * (cos(beta)/(lf+lr)) * tan(delta)
+// theta' = v * (1/(lf+lr)) * tan(delta)
 // beta = arctan(lr*tan(delta)/(lf+lr))
 
 // for simplicity we are going to assume beta is 0. 

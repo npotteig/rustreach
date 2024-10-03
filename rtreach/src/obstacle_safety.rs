@@ -153,8 +153,8 @@ pub fn allocate_obstacles(num_obstacles: u32, points: &[[f64; 2]]){
     *obstacle_count = num_obstacles;
     let cols: usize = 2;
     let height: usize = 2;
-    let w: f64 = 0.13;
-    let h: f64 = 0.13;
+    let w: f64 = 0.5;
+    let h: f64 = 0.5;
 
     println!("interval list of obstacles: ");
     let mut obstacles = vec![vec![vec![0.0; cols]; height]; rows];

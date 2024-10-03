@@ -2,6 +2,7 @@
 members = [
     "bicycle",   # Path to the bicycle library
     "rtreach",  # Path to the rtreach library
-    "exps/bicycle_simple_exp",
+    "exps/bicycle_simple_exp", 
+    "exps/bicycle_simple_ctrl",
 ]
 

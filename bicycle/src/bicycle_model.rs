@@ -75,6 +75,31 @@ pub fn restarted_computation(_: bool, storage_vec: &mut Vec<HyperRectangle<NUM_D
     storage_vec.truncate(1);
 }
 
+pub fn has_collided(state: &[f64; NUM_DIMS]) -> bool {
+    let mut rv = false;
+    let mut r: HyperRectangle<NUM_DIMS> = HyperRectangle::default();
+    for d in 0..NUM_DIMS {
+        r.dims[d].min = state[d];
+        r.dims[d].max = state[d];
+    }
+    r.dims[0].min = r.dims[0].min - 0.25;
+    r.dims[0].max = r.dims[0].max + 0.25;
+    r.dims[1].min = r.dims[1].min - 0.15;
+    r.dims[1].max = r.dims[1].max + 0.15;
+
+    let mut allowed = check_safety_obstacles(&r);
+
+    if allowed {
+        allowed = check_safety_wall(&r);
+    }
+
+    if !allowed {
+        rv = true;
+    }
+
+    rv
+}
+
 pub fn run_reachability_bicycle(system_model: &BicycleModel, 
                                 start: [f64; NUM_DIMS], 
                                 sim_time: f64,
