@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::sync::Mutex;
 use csv::Writer;
 use lazy_static::lazy_static;
@@ -48,6 +49,31 @@ pub fn save_rects_to_csv<const NUM_DIMS: usize>(filename: &str, data: &Vec<Hyper
             record.push(format!("{}", r.dims[d].max));
         }
         let _ = wtr.write_record(&record);
+    }
+    wtr.flush().unwrap();
+}
+
+pub fn save_reachtubes_to_csv<const NUM_DIMS: usize>(filename: &str, data: &Vec<Vec<HyperRectangle<NUM_DIMS>>>) {
+    let mut wtr = Writer::from_path(filename).unwrap();
+    // Create a single header
+    let mut header = vec![];
+    header.push(format!("time"));
+    for d in 0..NUM_DIMS {
+        header.push(format!("min{}", d));
+        header.push(format!("max{}", d));
+    }
+    let _ = wtr.write_record(&header);
+
+    for time in 0..data.len() {
+        for r in &data[time] {
+            let mut record = vec![];
+            record.push(format!("{}", time));
+            for d in 0..NUM_DIMS {
+                record.push(format!("{}", r.dims[d].min));
+                record.push(format!("{}", r.dims[d].max));
+            }
+            let _ = wtr.write_record(&record);
+        }
     }
     wtr.flush().unwrap();
 }

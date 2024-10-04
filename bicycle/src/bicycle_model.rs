@@ -56,9 +56,9 @@ pub fn intermediate_state(r: &mut HyperRectangle<NUM_DIMS>, store_rect: bool, st
     r.dims[1].min = r.dims[1].min + 0.15;
     r.dims[1].max = r.dims[1].max - 0.15;
 
-    if !allowed {
-       println!("unsafe....");
-    }
+    // if !allowed {
+    //    println!("unsafe....");
+    // }
     allowed
 }
 

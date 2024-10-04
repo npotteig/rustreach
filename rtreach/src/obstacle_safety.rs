@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use lazy_static::lazy_static;
 use super::geometry::HyperRectangle;
+use super::debug::DEBUG;
 
 // Define global variables using lazy_static
 lazy_static! {
@@ -100,9 +101,11 @@ pub fn check_safety_obstacles<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_D
                 
                 allowed = check_safety(rect, &obs);
                 if !allowed {
-                    println!("offending cone [{}, {}], [{}, {}]",
-                    obst[j as usize][0][0], obst[j as usize][0][1],
-                    obst[j as usize][1][0], obst[j as usize][1][1]);
+                    if DEBUG{
+                        println!("offending cone [{}, {}], [{}, {}]",
+                        obst[j as usize][0][0], obst[j as usize][0][1],
+                        obst[j as usize][1][0], obst[j as usize][1][1]);
+                    }
                     break;
                 }
             }

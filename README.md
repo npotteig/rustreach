@@ -1,8 +1,8 @@
 # RusTReach: A real time reachability tool written in Rust
 
-# Running Example
+## Simple Reachability Bicycle Example
 
-```
+```shell
 cargo run --release -p bicycle_simple_exp -- 100 2.0 0.2 0.0 0.0 0.0 0.0 1.0 0.2666 true false
 ``` 
 
@@ -45,4 +45,23 @@ Number of Rectangles: 5145
 
 Number of Iterations: 10
 done, result = safe
+```
+
+## Real-Time Reachability Control for Bicycle Model
+```shell
+cargo run --release -p bicycle_simple_ctrl
+```
+
+```
+interval list of obstacles: 
+[1.75, 2.25], [0.44999999999999996, 0.95]
+[1.75, 2.25], [-0.95, -0.44999999999999996]
+
+Goal 0: [4, 0]
+The state at time 0 s is: 
+ [0,0,0,1.5707963267948966] 
+
+Goal 0 Reached [4, 4]
+The state after 4.200000000000001 s is: 
+ [3.8786686384028077,0.008984564077128533,2.00257028102642,-0.08368162638123001]
 ```
