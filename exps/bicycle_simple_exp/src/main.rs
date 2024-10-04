@@ -15,15 +15,11 @@ fn main() {
     // Get the current working directory
     let current_dir = env::current_dir().expect("Failed to get current directory");
 
-    // Go two directories up
-    let parent_dir = current_dir.parent().unwrap();
-    let obs_file_path = parent_dir.join(OBS_FILE_PATH);
+    let obs_file_path = current_dir.join(OBS_FILE_PATH);
 
     let args: Vec<String> = std::env::args().collect();
-    if DEBUG {
-        println!("started");
-        println!("Argc: {}", args.len());
-    }
+    println!("started");
+    println!("Argc: {}", args.len());
 
     let mut runtime_ms: u64 = 0;
     let mut reach_time: f64 = 0.0;
@@ -49,9 +45,7 @@ fn main() {
         control_input[1] = args[9].parse::<f64>().unwrap();
         load_obstacles = args[10].parse::<bool>().unwrap();
         fixed_step = args[11].parse::<bool>().unwrap();
-        if DEBUG{
-            println!("runtime: {} ms\n\rx_0[0]: {}\n\rx_0[1]: {}\n\rx_0[2]: {}\n\rx_0[3]: {}\n\ru_0[0]: {}\n\ru_0[1]: {}\n\r\n", runtime_ms, start_state[0], start_state[1], start_state[2], start_state[3], control_input[0], control_input[1]);
-        }
+        println!("runtime: {} ms\n\rx_0[0]: {}\n\rx_0[1]: {}\n\rx_0[2]: {}\n\rx_0[3]: {}\n\ru_0[0]: {}\n\ru_0[1]: {}\n\r\n", runtime_ms, start_state[0], start_state[1], start_state[2], start_state[3], control_input[0], control_input[1]);
     }
 
     let delta: f64 = control_input[1];
@@ -91,9 +85,7 @@ fn main() {
     // save_rects_to_csv(RECTS_FILE_PATH, &storage_rects);
 
     //int runtimeMs = 20; // run for 20 milliseconds
-    if DEBUG {
-        let iters: u64 = *ITERATIONS_AT_QUIT.lock().unwrap();
-        println!("Number of Iterations: {}", iters);
-        println!("done, result = {}", if safe { "safe" } else { "unsafe" });
-    }
+    let iters: u64 = *ITERATIONS_AT_QUIT.lock().unwrap();
+    println!("Number of Iterations: {}", iters);
+    println!("done, result = {}", if safe { "safe" } else { "unsafe" });
 }
