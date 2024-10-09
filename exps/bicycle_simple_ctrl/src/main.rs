@@ -9,7 +9,7 @@ use bicycle::simulate_bicycle::step_bicycle;
 use bicycle::bicycle_model::has_collided;
 use bicycle::dynamics_bicycle::{BicycleModel, BICYCLE_NUM_DIMS as NUM_DIMS};
 use bicycle::utils::{distance, normalize_angle};
-use bicycle::controller::{SimpleGoalController, GoalConditionedController, select_safe_subgoal};
+use bicycle::controller::{SimpleGoalController, GoalConditionedController, select_safe_subgoal_rtreach, select_safe_subgoal_rect};
 
 const STATES_FILE_PATH: &str = "data/ctrl_states.csv";
 const SUBGOAL_FILE_PATH: &str = "data/subgoals.csv";
@@ -60,6 +60,7 @@ fn main() {
 
     // Control Parameters
     let use_subgoal_ctrl = true;
+    let use_rtreach = true;
     let pi_low = SimpleGoalController;
     let sim_time = 2.0;
     let wall_time_ms = 100;
@@ -81,9 +82,16 @@ fn main() {
 
         let ctrl_input;
         if use_subgoal_ctrl {
-            let (safe, subgoal, storage_vec) = select_safe_subgoal(&pi_low, &bicycle_model, state, [start_state[0], start_state[1]], goal_list[goal_idx], num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step);
-            reachtube_vec.push(storage_vec);
+            let (safe, subgoal, storage_vec) = 
+            if use_rtreach {
+                select_safe_subgoal_rtreach(&pi_low, &bicycle_model, state, [start_state[0], start_state[1]], goal_list[goal_idx], num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step)
+            }
+            else{
+                select_safe_subgoal_rect(state, [start_state[0], start_state[1]], goal_list[goal_idx], num_subgoal_cands*10)
+            };
+            
             subgoal_vec.push(subgoal);
+            reachtube_vec.push(storage_vec);
             if !safe {
                 println!("No safe subgoal found");
                 break;

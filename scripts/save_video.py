@@ -9,6 +9,8 @@ import numpy as np
 import imageio
 from tqdm import tqdm
 
+USING_RTREACH = False
+
 def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] = None, reachtubes: Optional[pd.DataFrame] = None):
     fig, ax = plt.subplots(figsize=(10, 5))
     w = 0.5
@@ -55,7 +57,7 @@ def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] 
                 sg = subgoals.iloc[i]
             ax.plot(sg['dim0'], sg['dim1'], color='blue', marker='o', markersize=10)
         
-        if reachtubes is not None and i != len(states) - 1:
+        if USING_RTREACH and reachtubes is not None and i != len(states) - 1:
             reachtubes_at_i = reachtubes[reachtubes['time'] == i]
             for j in range(0, len(reachtubes_at_i) - 1, 100):
                 rt = reachtubes_at_i.iloc[j]
@@ -74,6 +76,23 @@ def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] 
                 # rotation = transforms.Affine2D().rotate_deg_around((max_0 - min_0) / 2, (max_1 - min_1) / 2, np.degrees(row['dim3']))
                 # rect.set_transform(rotation + ax.transData)
                 ax.add_patch(rect)
+        elif (not USING_RTREACH) and reachtubes is not None and i != len(states) - 1:
+            reachtubes_at_i = reachtubes[reachtubes['time'] == i]
+            rt = reachtubes_at_i.iloc[0]
+            min_0 = rt['min0']
+            min_1 = rt['min1']
+            max_0 = rt['max0']
+            max_1 = rt['max1']
+            rect = patches.Rectangle(
+                (min_0, min_1),
+                max_0 - min_0,
+                max_1 - min_1,
+                edgecolor='none',
+                facecolor='lightblue',
+                alpha=0.5
+            )
+            ax.add_patch(rect)
+            
         
         np_states_so_far = np.array(states_so_far)
         if len(np_states_so_far) > 0:

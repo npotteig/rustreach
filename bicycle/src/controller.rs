@@ -2,10 +2,12 @@
 use std::f64::consts::PI;
 
 use rtreach::geometry::HyperRectangle;
+use rtreach::interval::{new_interval, new_interval_v};
+use rtreach::obstacle_safety::{check_safety_obstacles, check_safety_wall};
 
 use super::bicycle_model::run_reachability_bicycle;
 use super::dynamics_bicycle::{BicycleModel, BICYCLE_NUM_DIMS as NUM_DIMS};
-use super::utils::heading_error;
+use super::utils::{heading_error, distance};
 
 pub trait GoalConditionedController<const NUM_DIMS: usize, const CTRL_DIMS: usize, const GOAL_DIM: usize> {
     fn sample_action(&self, state: &[f64; NUM_DIMS], goal: &[f64; GOAL_DIM]) -> [f64; CTRL_DIMS];
@@ -50,9 +52,33 @@ fn velocity_controller(v_des: &[f64], state: &[f64]) -> [f64; 2] {
     [throttle_input, heading_input]
 }
 
+pub fn select_safe_subgoal_rect(
+    state: [f64; NUM_DIMS],
+    start: [f64; 2], 
+    goal: [f64; 2],
+    num_subgoal_cands: u32,
+)-> (bool, [f64; 2], Vec<HyperRectangle<NUM_DIMS>>){
+    let mut subgoals = generate_linear_subgoals(&start, &goal, num_subgoal_cands);
+    subgoals.reverse(); // Reverse the order to prioritize subgoals closer to the goal
+    for subgoal in subgoals.iter() {
+        let w_des = distance(&state[0..2], subgoal);
+        let subgoal_rect = HyperRectangle::<NUM_DIMS> {
+            dims: [
+                new_interval(subgoal[0] - w_des - 0.25, subgoal[0] + w_des + 0.25),
+                new_interval(subgoal[1] - w_des - 0.15, subgoal[1] + w_des + 0.15),
+                new_interval_v(0.0),
+                new_interval_v(0.0),
+            ],
+        };
+        if check_safety_obstacles(&subgoal_rect) && check_safety_wall(&subgoal_rect){
+            return (true, *subgoal, vec![subgoal_rect]);
+        }
+    }
+    (false, [0.0, 0.0], Vec::new())
+}
 // Function to select subgoal based on if its associated control input is safe
 // Output none if no safe subgoal is found
-pub fn select_safe_subgoal<
+pub fn select_safe_subgoal_rtreach<
                         T1: GoalConditionedController<NUM_DIMS, 2, 2>
                         >(
     controller: &T1,
@@ -80,8 +106,7 @@ pub fn select_safe_subgoal<
     if safe {
         return (true, subgoals[idx], storage_vec);
     }
-    return (false, [0.0, 0.0], Vec::new());
-
+    (false, [0.0, 0.0], Vec::new())
 }
 
 // Given a list of control inputs in priority order and current state,
