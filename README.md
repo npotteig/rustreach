@@ -65,3 +65,55 @@ Goal 0 Reached [4, 4]
 The state after 4.200000000000001 s is: 
  [3.8786686384028077,0.008984564077128533,2.00257028102642,-0.08368162638123001]
 ```
+
+## Simple Reachability Quadcopter Example
+
+A 12-DoF linear quadcopter model for a DJI F450.
+
+state is `[x, y, z, phi, theta, psi, u, v, w, p, q, r]`
+
+```shell
+cargo run -p quadcopter_simple_exp
+```
+
+```
+initial state: 
+x[0]: 0
+x[1]: 0
+x[2]: 0
+x[3]: 0
+x[4]: 0
+x[5]: 0
+x[6]: 0
+x[7]: 0
+x[8]: 0
+x[9]: 0
+x[10]: 0
+x[11]: 0
+
+The state after 1.9999999999998126 s is: 
+ 
+x[0]: 0.531600970293752
+x[1]: 0.531600970293752
+x[2]: 0
+x[3]: 0.16261788617886716
+x[4]: -0.16261788617886716
+x[5]: 0
+x[6]: 1.063414623512223
+x[7]: 1.063414623512223
+x[8]: 0
+x[9]: 0.16261788617885475
+x[10]: -0.16261788617885475
+x[11]: 0
+Number of States: 10002
+
+Running reachability analysis
+
+Number of Rectangles: 5147
+
+Last Rectangle: 
+[HyperRectangle (0, 0.5323329401409397) (0, 0.5323329401409397) (0, 0) (0, 0.16263351398297995) (-0.16263351398297995, 0) (0, 0) (0, 1.0640401142737297) (0, 1.0640401142737297) (0, 0) (0, 0.16260162601626088) (-0.16260162601626088, 0) (0, 0)]
+
+Number of Iterations: 10
+done, result = safe
+```

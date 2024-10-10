@@ -1,12 +1,11 @@
 use std::env;
-use std::path::{Path, PathBuf};
 
-use rtreach::debug::DEBUG;
 use rtreach::face_lift::ITERATIONS_AT_QUIT;
 use bicycle::dynamics_bicycle::BicycleModel;
 use bicycle::bicycle_model::{get_simulated_safe_time, run_reachability_bicycle};
 use rtreach::obstacle_safety::{allocate_obstacles, load_wallpoints};
 use rtreach::util::{save_rects_to_csv, save_states_to_csv};
+use rtreach::geometry::println;
 
 const OBS_FILE_PATH: &str = "data/porto_obstacles.txt";
 const STATES_FILE_PATH: &str = "data/porto_states.csv";
@@ -82,7 +81,11 @@ fn main() {
                                                                                        store_rects, 
                                                                                        fixed_step);
     println!("Number of Rectangles: {}\n", storage_rects.len());
-    // save_rects_to_csv(RECTS_FILE_PATH, &storage_rects);
+    if store_rects {
+        println!("Last Rectangle: ");
+        println(&storage_rects[storage_rects.len()-1]);
+        // save_rects_to_csv(current_dir.join(RECTS_FILE_PATH).to_str().unwrap(), &storage_rects);
+    }
 
     //int runtimeMs = 20; // run for 20 milliseconds
     let iters: u64 = *ITERATIONS_AT_QUIT.lock().unwrap();

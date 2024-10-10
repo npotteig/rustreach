@@ -75,6 +75,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "quadcopter"
+version = "0.1.0"
+dependencies = [
+ "lazy_static",
+ "rtreach",
+]
+
+[[package]]
+name = "quadcopter_simple_exp"
+version = "0.1.0"
+dependencies = [
+ "quadcopter",
+ "rtreach",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
