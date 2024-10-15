@@ -9,8 +9,8 @@ import numpy as np
 import imageio
 from tqdm import tqdm
 
-USING_RTREACH = True
-USING_QUAD = True
+USING_RTREACH = False
+USING_QUAD = False
 
 def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] = None, reachtubes: Optional[pd.DataFrame] = None):
     fig, ax = plt.subplots(figsize=(10, 5))
@@ -124,11 +124,13 @@ def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] 
             min_1 = row['dim1'] - 0.15
             max_0 = row['dim0'] + 0.25
             max_1 = row['dim1'] + 0.15
+            theta = row['dim3']
         else:
             min_0 = row['dim0'] - 0.16
             min_1 = row['dim1'] - 0.16
             max_0 = row['dim0'] + 0.16
             max_1 = row['dim1'] + 0.16
+            theta = row['dim5']
         # facecolor = 'green' if i < len(states) - 1 else 'red'
         facecolor = 'green'
         rect = patches.Rectangle(
@@ -139,7 +141,7 @@ def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] 
             facecolor=facecolor,
             alpha=0.5
         )
-        rotation = transforms.Affine2D().rotate_deg_around(row['dim0'], row['dim1'], np.degrees(row['dim5']))
+        rotation = transforms.Affine2D().rotate_deg_around(row['dim0'], row['dim1'], np.degrees(theta))
         
         rect.set_transform(rotation + ax.transData)
         ax.add_patch(rect)

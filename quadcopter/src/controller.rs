@@ -1,8 +1,6 @@
-use std::f64::consts::PI;
-
 use rtreach::geometry::HyperRectangle;
 use rtreach::interval::{new_interval, new_interval_v};
-use rtreach::obstacle_safety::{check_safety_obstacles_circumscribe, check_safety_obstacles};
+use rtreach::obstacle_safety::check_safety_obstacles_circumscribe;
 
 use super::quadcopter_model::run_reachability_quadcopter;
 use super::dynamics_quadcopter::{QuadcopterModel, QUAD_NUM_DIMS as NUM_DIMS};

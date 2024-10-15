@@ -3,7 +3,7 @@ use std::f64::consts::PI;
 
 use rtreach::geometry::HyperRectangle;
 use rtreach::interval::{new_interval, new_interval_v};
-use rtreach::obstacle_safety::{check_safety_obstacles, check_safety_wall};
+use rtreach::obstacle_safety::check_safety_obstacles_circumscribe;
 
 use super::bicycle_model::run_reachability_bicycle;
 use super::dynamics_bicycle::{BicycleModel, BICYCLE_NUM_DIMS as NUM_DIMS};
@@ -52,25 +52,27 @@ fn velocity_controller(v_des: &[f64], state: &[f64]) -> [f64; 2] {
     [throttle_input, heading_input]
 }
 
-pub fn select_safe_subgoal_rect(
-    state: [f64; NUM_DIMS],
+pub fn select_safe_subgoal_circle(
+    state: &[f64; NUM_DIMS],
     start: [f64; 2], 
     goal: [f64; 2],
     num_subgoal_cands: u32,
 )-> (bool, [f64; 2], Vec<HyperRectangle<NUM_DIMS>>){
+    // let robot_rad = (0.25f64.powf(2.0) + 0.15f64.powf(2.0)).sqrt();
+    let robot_rad = 0.1;
     let mut subgoals = generate_linear_subgoals(&start, &goal, num_subgoal_cands);
     subgoals.reverse(); // Reverse the order to prioritize subgoals closer to the goal
     for subgoal in subgoals.iter() {
-        let w_des = distance(&state[0..2], subgoal);
+        let rad_des = distance(state, subgoal);
         let subgoal_rect = HyperRectangle::<NUM_DIMS> {
             dims: [
-                new_interval(subgoal[0] - w_des - 0.25, subgoal[0] + w_des + 0.25),
-                new_interval(subgoal[1] - w_des - 0.15, subgoal[1] + w_des + 0.15),
+                new_interval(subgoal[0] - rad_des, subgoal[0] + rad_des),
+                new_interval(subgoal[1] - rad_des, subgoal[1] + rad_des),
                 new_interval_v(0.0),
                 new_interval_v(0.0),
             ],
         };
-        if check_safety_obstacles(&subgoal_rect) && check_safety_wall(&subgoal_rect){
+        if check_safety_obstacles_circumscribe(subgoal, robot_rad, rad_des){
             return (true, *subgoal, vec![subgoal_rect]);
         }
     }
