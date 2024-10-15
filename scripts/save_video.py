@@ -9,7 +9,8 @@ import numpy as np
 import imageio
 from tqdm import tqdm
 
-USING_RTREACH = False
+USING_RTREACH = True
+USING_QUAD = True
 
 def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] = None, reachtubes: Optional[pd.DataFrame] = None):
     fig, ax = plt.subplots(figsize=(10, 5))
@@ -46,6 +47,21 @@ def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] 
             facecolor='blue',
             alpha=0.5
         ))
+        if not USING_RTREACH:
+            ax.add_patch(patches.Circle(
+                pt_0,
+                0.25 * np.sqrt(2),
+                edgecolor='black',
+                facecolor='lightblue',
+                alpha=0.5
+            ))
+            ax.add_patch(patches.Circle(
+                pt_1,
+                0.25 * np.sqrt(2),
+                edgecolor='black',
+                facecolor='lightblue',
+                alpha=0.5
+            ))
         ax.plot([0, 4], [0, 0], color='black', linestyle='--')
         ax.plot([4], [0], color='green', marker='o', markersize=25)
         ax.plot([0], [0], color='green', marker='o', markersize=25)
@@ -61,10 +77,16 @@ def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] 
             reachtubes_at_i = reachtubes[reachtubes['time'] == i]
             for j in range(0, len(reachtubes_at_i) - 1, 100):
                 rt = reachtubes_at_i.iloc[j]
-                min_0 = rt['min0'] - 0.25
-                min_1 = rt['min1'] - 0.15
-                max_0 = rt['max0'] + 0.25
-                max_1 = rt['max1'] + 0.15
+                if not USING_QUAD:
+                    min_0 = rt['min0'] - 0.25
+                    min_1 = rt['min1'] - 0.15
+                    max_0 = rt['max0'] + 0.25
+                    max_1 = rt['max1'] + 0.15
+                else:
+                    min_0 = rt['min0'] - 0.16
+                    min_1 = rt['min1'] - 0.16
+                    max_0 = rt['max0'] + 0.16
+                    max_1 = rt['max1'] + 0.16
                 rect = patches.Rectangle(
                     (min_0, min_1),
                     max_0 - min_0,
@@ -73,8 +95,6 @@ def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] 
                     facecolor='lightgreen',
                     alpha=0.5
                 )
-                # rotation = transforms.Affine2D().rotate_deg_around((max_0 - min_0) / 2, (max_1 - min_1) / 2, np.degrees(row['dim3']))
-                # rect.set_transform(rotation + ax.transData)
                 ax.add_patch(rect)
         elif (not USING_RTREACH) and reachtubes is not None and i != len(states) - 1:
             reachtubes_at_i = reachtubes[reachtubes['time'] == i]
@@ -83,25 +103,32 @@ def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] 
             min_1 = rt['min1']
             max_0 = rt['max0']
             max_1 = rt['max1']
-            rect = patches.Rectangle(
-                (min_0, min_1),
-                max_0 - min_0,
-                max_1 - min_1,
+            center = [(min_0 + max_0) / 2, (min_1 + max_1) / 2]
+            radius = (max_0 - min_0) / 2
+            circle = patches.Circle(
+                center,
+                radius,
                 edgecolor='none',
                 facecolor='lightblue',
                 alpha=0.5
             )
-            ax.add_patch(rect)
+            ax.add_patch(circle)
             
         
         np_states_so_far = np.array(states_so_far)
         if len(np_states_so_far) > 0:
             ax.scatter(np_states_so_far[:, 0], np_states_so_far[:, 1], color='grey', marker='o', s=5)
         
-        min_0 = row['dim0'] - 0.25
-        min_1 = row['dim1'] - 0.15
-        max_0 = row['dim0'] + 0.25
-        max_1 = row['dim1'] + 0.15
+        if not USING_QUAD:
+            min_0 = row['dim0'] - 0.25
+            min_1 = row['dim1'] - 0.15
+            max_0 = row['dim0'] + 0.25
+            max_1 = row['dim1'] + 0.15
+        else:
+            min_0 = row['dim0'] - 0.16
+            min_1 = row['dim1'] - 0.16
+            max_0 = row['dim0'] + 0.16
+            max_1 = row['dim1'] + 0.16
         # facecolor = 'green' if i < len(states) - 1 else 'red'
         facecolor = 'green'
         rect = patches.Rectangle(
@@ -112,14 +139,24 @@ def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] 
             facecolor=facecolor,
             alpha=0.5
         )
-        rotation = transforms.Affine2D().rotate_deg_around(row['dim0'], row['dim1'], np.degrees(row['dim3']))
+        rotation = transforms.Affine2D().rotate_deg_around(row['dim0'], row['dim1'], np.degrees(row['dim5']))
         
         rect.set_transform(rotation + ax.transData)
         ax.add_patch(rect)
+        if USING_QUAD:
+            triangle = patches.Polygon(
+                [[row['dim0'], row['dim1'] + 0.16], [row['dim0'] + 0.16, row['dim1']], [row['dim0'], row['dim1'] - 0.16]],
+                edgecolor='black',
+                facecolor='orange',
+                alpha=0.5
+            )
+            triangle.set_transform(rotation + ax.transData)
+            ax.add_patch(triangle)
+        
         ax.plot(row['dim0'], row['dim1'], color='black', marker='o', markersize=5)
         states_so_far.append((row['dim0'], row['dim1']))
-        if i == 26:
-            fig.savefig('figs/subgoal_demo.pdf')
+        # if i == 26:
+        #     fig.savefig('figs/subgoal_demo.pdf')
         fig.canvas.draw()
         ax.cla()
         

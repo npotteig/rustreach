@@ -6,5 +6,6 @@ members = [
     "exps/bicycle_simple_exp", 
     "exps/bicycle_simple_ctrl", 
     "exps/quadcopter_simple_exp", 
+    "exps/quadcopter_simple_ctrl", 
 ]
 

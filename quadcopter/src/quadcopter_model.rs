@@ -1,5 +1,5 @@
 use super::dynamics_quadcopter::{QuadcopterModel, QUAD_NUM_DIMS as NUM_DIMS};
-use super::simulate_quadcopter::simulate_quadcopter;
+use super::simulate_quadcopter::simulate_quadcopter_exp;
 use rtreach::geometry::HyperRectangle;
 use rtreach::obstacle_safety::{check_safety_obstacles, check_safety_wall};
 use rtreach::face_lift::{LiftingSettings, face_lifting_iterative_improvement};
@@ -26,7 +26,7 @@ pub fn get_simulated_safe_time(system_model: &QuadcopterModel, start: [f64; NUM_
     let step_size: f64 = 0.0002;
     let mut rv: f64 = 0.0;
     let mut storage_vec: Vec<[f64; NUM_DIMS]> = Vec::new();
-    simulate_quadcopter(system_model, start, ctrl_input, step_size, should_stop, &mut rv, store_state, &mut storage_vec);
+    simulate_quadcopter_exp(system_model, start, ctrl_input, step_size, should_stop, &mut rv, store_state, &mut storage_vec);
 
     (rv, storage_vec)
 }
@@ -70,6 +70,32 @@ pub fn final_state(r: &mut HyperRectangle<NUM_DIMS>, store_rect: bool, storage_v
 // Clear all but the first rectangle (initial state) in the storage vector
 pub fn restarted_computation(_: bool, storage_vec: &mut Vec<HyperRectangle<NUM_DIMS>>) {
     storage_vec.truncate(1);
+}
+
+pub fn has_collided(state: &[f64; NUM_DIMS]) -> bool {
+    let mut rv = false;
+    let mut r: HyperRectangle<NUM_DIMS> = HyperRectangle::default();
+    for d in 0..NUM_DIMS {
+        r.dims[d].min = state[d];
+        r.dims[d].max = state[d];
+    }
+    let dxm = 0.16;
+    r.dims[0].min = r.dims[0].min - dxm;
+    r.dims[0].max = r.dims[0].max + dxm;
+    r.dims[1].min = r.dims[1].min - dxm;
+    r.dims[1].max = r.dims[1].max + dxm;
+
+    let mut allowed = check_safety_obstacles(&r);
+
+    if allowed {
+        allowed = check_safety_wall(&r);
+    }
+
+    if !allowed {
+        rv = true;
+    }
+
+    rv
 }
 
 pub fn run_reachability_quadcopter(system_model: &QuadcopterModel, 

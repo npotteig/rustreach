@@ -4,7 +4,7 @@ use super::dynamics_quadcopter::{QuadcopterModel, QUAD_NUM_DIMS as NUM_DIMS};
 use rtreach::debug::DEBUG;
 
 // simulate dynamics using Euler's method
-pub fn simulate_quadcopter(
+pub fn simulate_quadcopter_exp(
     system_model: &QuadcopterModel, 
     start_point: [f64; NUM_DIMS], 
     ctrl_input: &Vec<f64>,
@@ -40,6 +40,27 @@ pub fn simulate_quadcopter(
         println!("x[{}]: {}", d, point[d]);
     }
 
+}
+
+pub fn simulate_quadcopter(
+    system_model: &QuadcopterModel, 
+    start_point: [f64; NUM_DIMS], 
+    ctrl_input: &Vec<f64>,
+    step_size: f64,
+    max_time: f64) 
+-> [f64; NUM_DIMS] {
+    let mut point: [f64; NUM_DIMS] = std::array::from_fn(|d| start_point[d]);
+    
+    let mut time: f64 = 0.0;
+
+    loop{
+        if time >= max_time {
+            break;
+        }
+        point = step_quadcopter(system_model, &point, ctrl_input, step_size);
+        time += step_size;
+    }
+    point
 }
 
 pub fn step_quadcopter(

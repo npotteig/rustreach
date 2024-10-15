@@ -118,7 +118,7 @@ fn main() {
         println!("Collision Detected");
     }
     else if distance(&state, &goal_list[goal_list.len() - 1]) < thresh{
-        println!("Goal {} Reached [{}, {}]", goal_idx, goal_list[goal_idx][goal_list.len() - 1], goal_list[goal_idx][goal_list.len() - 1]);
+        println!("Goal {} Reached [{}, {}]", goal_idx, goal_list[goal_list.len() - 1][0], goal_list[goal_list.len() - 1][1]);
     }
     else{
         println!("Max Steps Reached");

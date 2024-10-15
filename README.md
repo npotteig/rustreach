@@ -117,3 +117,44 @@ Last Rectangle:
 Number of Iterations: 10
 done, result = safe
 ```
+
+## Real-time Reachability Control for Quadcopter Model
+```shell
+cargo run --release -p quadcopter_simple_ctrl
+```
+Perturbed inital velocity 0.5 m/s in the y direction
+```
+interval list of obstacles: 
+[1.75, 2.25], [0.44999999999999996, 0.95]
+[1.75, 2.25], [-0.95, -0.44999999999999996]
+
+Goal 0: [4, 0, 0]
+initial state: 
+x[0]: 0
+x[1]: 0
+x[2]: 0
+x[3]: 0
+x[4]: 0
+x[5]: 0
+x[6]: 0
+x[7]: 0.5
+x[8]: 0
+x[9]: 0
+x[10]: 0
+x[11]: 0
+
+Goal 0 Reached [4, 0, 0]
+The state after 3.600000000000002 s is: 
+x[0]: 3.7921972780241258
+x[1]: -0.02653440105393088
+x[2]: 0
+x[3]: 0.04193071113397394
+x[4]: 0.5785894899326064
+x[5]: -0.6296314572806609
+x[6]: 1.1013285808653615
+x[7]: -0.14827875303549107
+x[8]: 0
+x[9]: 0.026224409730078634
+x[10]: -0.2628017573629675
+x[11]: 1.0992535880219032
+```

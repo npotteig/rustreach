@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use lazy_static::lazy_static;
 use super::geometry::HyperRectangle;
+use super::util::distance_2d;
 use super::debug::DEBUG;
 
 // Define global variables using lazy_static
@@ -106,6 +107,33 @@ pub fn check_safety_obstacles<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_D
                         obst[j as usize][0][0], obst[j as usize][0][1],
                         obst[j as usize][1][0], obst[j as usize][1][1]);
                     }
+                    break;
+                }
+            }
+        },
+        None => {
+            allowed = true;
+        }
+    }
+    
+    allowed
+}
+
+pub fn check_safety_obstacles_circumscribe(candidate: &[f64], robot_radius: f64, cand_radius: f64) -> bool {
+    let mut allowed: bool = true;
+
+    let obstacle_count: u32 = *OBSTACLE_COUNT.lock().unwrap();
+    let obstacles: &Option<Vec<Vec<Vec<f64>>>> = &*OBSTACLES.lock().unwrap();
+
+    match obstacles {
+        Some(obst) => {
+            for j in 0..obstacle_count {
+                let obs_pos_x =  (obst[j as usize][0][1] + obst[j as usize][0][0]) / 2.0;
+                let obs_pos_y =  (obst[j as usize][1][1] + obst[j as usize][1][0]) / 2.0;
+                let obs_rad = distance_2d(&[obs_pos_x, obs_pos_y], &[obst[j as usize][0][0], obst[j as usize][1][0]]);
+                
+                allowed = distance_2d(&[obs_pos_x, obs_pos_y], candidate) - (obs_rad + robot_radius + cand_radius) > 0.0;
+                if !allowed {
                     break;
                 }
             }
