@@ -204,10 +204,11 @@ pub fn face_lifting_iterative_improvement<const NUM_DIMS: usize, T: SystemModel<
     system_model: &T,
     start_ms: u64,
     settings: &mut LiftingSettings<NUM_DIMS>,
-    ctrl_input: &Vec<f64>,
+    initial_ctrl_input: &Vec<f64>,
     store_rect: bool,
     storage_vec: &mut Vec<HyperRectangle<NUM_DIMS>>,
     fixed_step: bool,
+    dynamic_control: bool,
 ) -> bool {
     let mut rv = false;
     let mut last_iteration_safe = false;
@@ -223,6 +224,8 @@ pub fn face_lifting_iterative_improvement<const NUM_DIMS: usize, T: SystemModel<
     let mut previous_iter: u64 = 1;
     let mut elapsed_prev: u64 = 0;
     let mut next_iter_estimate: u64 = 0;
+
+    let mut ctrl_input = initial_ctrl_input.clone();
 
     loop{
         iter += 1;
@@ -264,6 +267,9 @@ pub fn face_lifting_iterative_improvement<const NUM_DIMS: usize, T: SystemModel<
 
             // debug changed so error tracker is always passed in (see note)
             let time_elapsed: f64 = lift_single_rect::<NUM_DIMS, T>(system_model, &mut tracked_rect, step_size, time_remaining, &ctrl_input, settings);
+            if dynamic_control {
+                ctrl_input = system_model.sample_control(&tracked_rect);
+            }
 
             // if we're not even close to the desired step size
             if hyperrectangle_max_width(&tracked_rect) > settings.max_rect_width_before_error {

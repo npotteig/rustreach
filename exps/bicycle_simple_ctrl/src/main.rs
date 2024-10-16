@@ -9,7 +9,7 @@ use bicycle::simulate_bicycle::step_bicycle;
 use bicycle::bicycle_model::has_collided;
 use bicycle::dynamics_bicycle::{BicycleModel, BICYCLE_NUM_DIMS as NUM_DIMS};
 use bicycle::utils::{distance, normalize_angle};
-use bicycle::controller::{SimpleGoalController, GoalConditionedController, select_safe_subgoal_rtreach, select_safe_subgoal_circle};
+use bicycle::controller::{select_safe_subgoal_rtreach, select_safe_subgoal_circle, goal_conditioned_sample_action};
 
 const STATES_FILE_PATH: &str = "data/bicycle/ctrl/ctrl_states.csv";
 const SUBGOAL_FILE_PATH: &str = "data/bicycle/ctrl/subgoals.csv";
@@ -22,7 +22,7 @@ fn main() {
     let subgoal_file_path = current_dir.join(SUBGOAL_FILE_PATH);
     let reachtube_file_path = current_dir.join(REACHTUBE_FILE_PATH);
 
-    let bicycle_model = BicycleModel;
+    let mut bicycle_model = BicycleModel::default();
 
     let num_obstacles: u32 = 2;
     let points: [[f64; 2]; 2] = [[2.,0.7], [2., -0.7]];
@@ -61,13 +61,16 @@ fn main() {
     // Control Parameters
     let use_subgoal_ctrl = true;
     let use_rtreach = true;
-    let pi_low = SimpleGoalController;
+    let use_rtreach_dynamic_control = true;
+    let pi_low = goal_conditioned_sample_action;
     let sim_time = 2.0;
     let wall_time_ms = 100;
     let start_ms = 0;
-    let store_rect = false;
+    let store_rect = true;
     let fixed_step = false;
     let num_subgoal_cands = 10;
+
+    bicycle_model.set_ctrl_fn(pi_low);
 
     for i in 0..goal_list.len() {
         println!("Goal {}: [{}, {}]", i, goal_list[i][0], goal_list[i][1]);
@@ -84,7 +87,7 @@ fn main() {
         if use_subgoal_ctrl {
             let (safe, subgoal, storage_vec) = 
             if use_rtreach {
-                select_safe_subgoal_rtreach(&pi_low, &bicycle_model, state, [start_state[0], start_state[1]], goal_list[goal_idx], num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step)
+                select_safe_subgoal_rtreach(&pi_low, &mut bicycle_model, state, [start_state[0], start_state[1]], goal_list[goal_idx], num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control)
             }
             else{
                 select_safe_subgoal_circle(&state, [start_state[0], start_state[1]], goal_list[goal_idx], num_subgoal_cands*10)
@@ -96,13 +99,13 @@ fn main() {
                 println!("No safe subgoal found");
                 break;
             }
-            ctrl_input = pi_low.sample_action(&state, &subgoal);
+            ctrl_input = pi_low(&state, &subgoal);
         }
         else {
-            ctrl_input = pi_low.sample_action(&state, &goal_list[goal_idx]);
+            ctrl_input = pi_low(&state, &goal_list[goal_idx]);
         }
 
-        let mut next_state = step_bicycle(&bicycle_model, &state, ctrl_input[1], ctrl_input[0], step_size);
+        let mut next_state = step_bicycle(&bicycle_model, &state, ctrl_input[0], ctrl_input[1], step_size);
         
         next_state[3] = normalize_angle(next_state[3]);
         states_vec.push(next_state);

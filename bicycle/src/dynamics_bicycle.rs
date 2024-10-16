@@ -40,7 +40,29 @@ pub const BICYCLE_NUM_DIMS: usize = 4;
 
 // state vector x,y,v,theta
 
-pub struct BicycleModel;
+pub struct BicycleModel {
+    pub goal: [f64; 2],
+    pub ctrl_fn: fn(&[f64; BICYCLE_NUM_DIMS], &[f64; 2]) -> [f64; 2],
+}
+
+impl Default for BicycleModel {
+    fn default() -> Self {
+        BicycleModel {
+            goal: [0.0; 2],
+            ctrl_fn: |_, _| [0.0; 2],
+        }
+    }
+}
+
+impl BicycleModel {
+    pub fn set_ctrl_fn(&mut self, ctrl_fn: fn(&[f64; BICYCLE_NUM_DIMS], &[f64; 2]) -> [f64; 2]) {
+        self.ctrl_fn = ctrl_fn;
+    }
+
+    pub fn set_goal(&mut self, goal: [f64; 2]) {
+        self.goal = goal;
+    }
+}
 
 impl SystemModel<BICYCLE_NUM_DIMS> for BicycleModel {
     fn get_derivative_bounds(
@@ -50,6 +72,13 @@ impl SystemModel<BICYCLE_NUM_DIMS> for BicycleModel {
         ctrl_inputs: &Vec<f64>,
     ) -> f64 {
         _get_derivative_bounds_bicycle(rect, face_index, ctrl_inputs[0], ctrl_inputs[1])
+    }
+
+    fn sample_control(
+        &self,
+        rect: &HyperRectangle<BICYCLE_NUM_DIMS>,
+    ) -> Vec<f64> {
+        (self.ctrl_fn)(&rect.mean_point().dims, &self.goal).to_vec()
     }
 }
 

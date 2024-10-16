@@ -109,7 +109,8 @@ pub fn run_reachability_bicycle(system_model: &BicycleModel,
                                 heading_input: f64, 
                                 throttle: f64, 
                                 store_rect: bool,
-                                fixed_step: bool) -> (bool, Vec<HyperRectangle<NUM_DIMS>>) {
+                                fixed_step: bool,
+                                dynamic_control: bool) -> (bool, Vec<HyperRectangle<NUM_DIMS>>) {
     let mut set: LiftingSettings<NUM_DIMS> = LiftingSettings::<NUM_DIMS> {
         init: HyperRectangle::default(),
         reach_time: sim_time,
@@ -132,6 +133,7 @@ pub fn run_reachability_bicycle(system_model: &BicycleModel,
                                                         &vec![heading_input, throttle], 
                                                         store_rect, 
                                                         &mut storage_vec,
-                                                        fixed_step);
+                                                        fixed_step,
+                                                        dynamic_control);
     (safe, storage_vec)
 }

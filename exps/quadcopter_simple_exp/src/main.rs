@@ -1,7 +1,7 @@
 use std::env;
 
 use rtreach::face_lift::ITERATIONS_AT_QUIT;
-use quadcopter::dynamics_quadcopter::QuadcopterModel;
+use quadcopter::dynamics_quadcopter::{self, QuadcopterModel};
 use quadcopter::quadcopter_model::{get_simulated_safe_time, run_reachability_quadcopter};
 use rtreach::util::{save_rects_to_csv, save_states_to_csv};
 use rtreach::geometry::println;
@@ -28,7 +28,7 @@ fn main() {
     }
     println!();
 
-    let quad_model = QuadcopterModel;
+    let quad_model = QuadcopterModel::default();
     let (_, storage_states) = get_simulated_safe_time(&quad_model, start_state, &control_input, store_state);
     println!("Number of States: {}\n", storage_states.len());
     // if store_state {
@@ -44,7 +44,8 @@ fn main() {
                                                                                             start_ms, 
                                                                                             &control_input,
                                                                                             store_rects, 
-                                                                                            fixed_step);
+                                                                                            fixed_step,
+                                                                                        false);
     println!("Number of Rectangles: {}\n", storage_rects.len());
     if store_rects {
         println!("Last Rectangle (Reachtube): ");

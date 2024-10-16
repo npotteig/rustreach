@@ -49,7 +49,7 @@ fn main() {
 
     let delta: f64 = control_input[1];
     let u: f64 = control_input[0];
-    let bicycle_model = BicycleModel;
+    let bicycle_model = BicycleModel::default();
     // simulate the car with a constant input passed from the command line
     let store_state: bool = true;
     let (_, storage_states) = get_simulated_safe_time(&bicycle_model, start_state, delta, u, store_state);
@@ -79,7 +79,8 @@ fn main() {
                                                                                        delta, 
                                                                                        u, 
                                                                                        store_rects, 
-                                                                                       fixed_step);
+                                                                                       fixed_step,
+                                                                                    false);
     println!("Number of Rectangles: {}\n", storage_rects.len());
     if store_rects {
         println!("Last Rectangle: ");

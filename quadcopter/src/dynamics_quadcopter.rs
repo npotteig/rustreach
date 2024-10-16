@@ -41,7 +41,30 @@ pub const QUAD_NUM_DIMS: usize = 12;
 // I_y = 0.0123 kg m^2 is the moment of inertia about the y-axis
 // I_z = 0.0224 kg m^2 is the moment of inertia about the z-axis
 
-pub struct QuadcopterModel;
+pub struct QuadcopterModel{
+    pub goal: [f64; 3],
+    pub ctrl_fn: fn(&[f64; QUAD_NUM_DIMS], &[f64; 3]) -> [f64; 4],
+}
+
+impl Default for QuadcopterModel {
+    fn default() -> Self {
+        QuadcopterModel {
+            goal: [0.0; 3],
+            ctrl_fn: |_, _| [0.0; 4],
+        }
+    }
+}
+
+impl QuadcopterModel {
+    pub fn set_ctrl_fn(&mut self, ctrl_fn: fn(&[f64; QUAD_NUM_DIMS], &[f64; 3]) -> [f64; 4]) {
+        self.ctrl_fn = ctrl_fn;
+    }
+
+    pub fn set_goal(&mut self, goal: [f64; 3]) {
+        self.goal = goal;
+    }
+}
+
 
 impl SystemModel<QUAD_NUM_DIMS> for QuadcopterModel {
     fn get_derivative_bounds(
@@ -51,6 +74,13 @@ impl SystemModel<QUAD_NUM_DIMS> for QuadcopterModel {
         ctrl_inputs: &Vec<f64>,
     ) -> f64 {
         _get_derivative_bounds_quadcopter(rect, face_index, ctrl_inputs[0], ctrl_inputs[1], ctrl_inputs[2], ctrl_inputs[3])
+    }
+
+    fn sample_control(
+            &self,
+            rect: &HyperRectangle<QUAD_NUM_DIMS>,
+        ) -> Vec<f64> {
+        (self.ctrl_fn)(&rect.mean_point().dims, &self.goal).to_vec()
     }
 }
 

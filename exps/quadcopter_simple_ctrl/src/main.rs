@@ -7,7 +7,7 @@ use rtreach::geometry::HyperRectangle;
 use quadcopter::simulate_quadcopter::simulate_quadcopter;
 use quadcopter::quadcopter_model::has_collided;
 use quadcopter::dynamics_quadcopter::{QuadcopterModel, QUAD_NUM_DIMS as NUM_DIMS};
-use quadcopter::controller::{SimpleGoalController, GoalConditionedController, select_safe_subgoal_circle, select_safe_subgoal_rtreach};
+use quadcopter::controller::{select_safe_subgoal_circle, select_safe_subgoal_rtreach, goal_conditioned_sample_action};
 use quadcopter::utils::{distance, normalize_angle};
 
 const STATES_FILE_PATH: &str = "data/quadcopter/ctrl/ctrl_states.csv";
@@ -21,7 +21,7 @@ fn main() {
     let subgoal_file_path = current_dir.join(SUBGOAL_FILE_PATH);
     let reachtube_file_path = current_dir.join(REACHTUBE_FILE_PATH);
 
-    let quadcopter_model = QuadcopterModel;
+    let mut quadcopter_model = QuadcopterModel::default();
 
     let num_obstacles: u32 = 2;
     let points: [[f64; 2]; 2] = [[2.,0.7], [2., -0.7]];
@@ -59,14 +59,17 @@ fn main() {
 
     // Control Parameters
     let use_subgoal_ctrl = true;
-    let use_rtreach = true;
-    let pi_low = SimpleGoalController;
+    let use_rtreach = false;
+    let use_rtreach_dynamic_control = false;
+    let pi_low = goal_conditioned_sample_action;
     let sim_time = 2.0;
     let wall_time_ms = 100;
     let start_ms = 0;
     let store_rect = true;
     let fixed_step = false;
-    let num_subgoal_cands = 20;
+    let num_subgoal_cands = 10;
+
+    quadcopter_model.set_ctrl_fn(pi_low);
 
     for i in 0..goal_list.len() {
         println!("Goal {}: [{}, {}, {}]", i, goal_list[i][0], goal_list[i][1], goal_list[i][2]);
@@ -88,22 +91,22 @@ fn main() {
         if use_subgoal_ctrl {
             let (safe, subgoal, storage_vec) = 
             if use_rtreach {
-                select_safe_subgoal_rtreach(&pi_low, &quadcopter_model, state, [start_state[0], start_state[1], start_state[2]], goal_list[goal_idx], num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step)
+                select_safe_subgoal_rtreach(&pi_low, &mut quadcopter_model, state, [start_state[0], start_state[1], start_state[2]], goal_list[goal_idx], num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control)
             }
             else{
                 select_safe_subgoal_circle(&state, [start_state[0], start_state[1], start_state[2]], goal_list[goal_idx], num_subgoal_cands*10)
             };
             
-            let mut sg = subgoal.clone();
             if !safe {
-                sg = [start_state[0], start_state[1], start_state[2]];
+                println!("No safe subgoal found");
+                break;
             }
-            subgoal_vec.push(sg);
+            subgoal_vec.push(subgoal);
             reachtube_vec.push(storage_vec);
-            ctrl_input = pi_low.sample_action(&state, &sg).to_vec();
+            ctrl_input = pi_low(&state, &subgoal).to_vec();
         }
         else {
-            ctrl_input = pi_low.sample_action(&state, &goal_list[goal_idx]).to_vec();
+            ctrl_input = pi_low(&state, &goal_list[goal_idx]).to_vec();
         }
         // println!("Control Input: {:?}", ctrl_input);
 

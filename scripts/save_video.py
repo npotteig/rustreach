@@ -9,7 +9,7 @@ import numpy as np
 import imageio
 from tqdm import tqdm
 
-USING_RTREACH = False
+USING_RTREACH = True
 USING_QUAD = False
 
 def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] = None, reachtubes: Optional[pd.DataFrame] = None):
@@ -75,7 +75,7 @@ def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] 
         
         if USING_RTREACH and reachtubes is not None and i != len(states) - 1:
             reachtubes_at_i = reachtubes[reachtubes['time'] == i]
-            for j in range(0, len(reachtubes_at_i) - 1, 100):
+            for j in range(0, len(reachtubes_at_i) - 1, 50):
                 rt = reachtubes_at_i.iloc[j]
                 if not USING_QUAD:
                     min_0 = rt['min0'] - 0.25
@@ -158,7 +158,7 @@ def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] 
         ax.plot(row['dim0'], row['dim1'], color='black', marker='o', markersize=5)
         states_so_far.append((row['dim0'], row['dim1']))
         # if i == 26:
-        #     fig.savefig('figs/subgoal_demo.pdf')
+        #     fig.savefig('figs/bicycle/subgoal_demo.pdf')
         fig.canvas.draw()
         ax.cla()
         

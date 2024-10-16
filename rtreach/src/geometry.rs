@@ -14,7 +14,7 @@ impl Default for Interval {
 }
 
 pub struct HyperPoint<const NUM_DIMS: usize> {
-    dims: [f64; NUM_DIMS],  
+    pub dims: [f64; NUM_DIMS],  
 }
 
 #[derive(Copy, Clone)]
@@ -33,6 +33,16 @@ impl<const NUM_DIMS: usize> Default for HyperRectangle<NUM_DIMS> {
 impl<const NUM_DIMS: usize> HyperRectangle<NUM_DIMS> {
     pub fn num_dims(&self) -> usize {
         NUM_DIMS
+    }
+
+    pub fn mean_point(&self) -> HyperPoint<NUM_DIMS> {
+        let mut mean = HyperPoint { dims: [0.0; NUM_DIMS] };
+
+        for d in 0..NUM_DIMS {
+            mean.dims[d] = (self.dims[d].min + self.dims[d].max) / 2.0;
+        }
+
+        mean
     }
 }
 
@@ -135,6 +145,23 @@ pub fn hyperrectangle_bloat<const NUM_DIMS: usize>(out: &mut HyperRectangle<NUM_
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
+
+    #[test]
+    fn test_mean_point(){
+        let r = HyperRectangle::<4> {
+            dims: [
+                Interval { min: 0.0, max: 1.0 },
+                Interval { min: 0.0, max: 1.0 },
+                Interval { min: 0.0, max: 1.0 },
+                Interval { min: 0.0, max: 1.0 },
+            ],
+        };
+        let p = r.mean_point();
+        assert_eq!(p.dims[0], 0.5);
+        assert_eq!(p.dims[1], 0.5);
+        assert_eq!(p.dims[2], 0.5);
+        assert_eq!(p.dims[3], 0.5);
+    }
 
     #[test]
     fn test_interval_width() {
