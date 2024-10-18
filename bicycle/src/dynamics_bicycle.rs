@@ -1,3 +1,5 @@
+use tract_onnx::prelude::*;
+
 use rtreach::geometry::*;
 use rtreach::interval::*;
 use rtreach::system_model::SystemModel;
@@ -40,31 +42,41 @@ pub const BICYCLE_NUM_DIMS: usize = 4;
 
 // state vector x,y,v,theta
 
-pub struct BicycleModel {
+pub struct BicycleModel<'a> {
     pub goal: [f64; 2],
-    pub ctrl_fn: fn(&[f64; BICYCLE_NUM_DIMS], &[f64; 2]) -> [f64; 2],
+    pub ctrl_fn: fn(&[f64; BICYCLE_NUM_DIMS], &[f64; 2], Option<&'a SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>) -> [f64; 2],
+    pub model: Option<&'a SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>
 }
 
-impl Default for BicycleModel {
+impl Default for BicycleModel<'_> {
     fn default() -> Self {
         BicycleModel {
             goal: [0.0; 2],
-            ctrl_fn: |_, _| [0.0; 2],
+            ctrl_fn: |_, _, _| [0.0; 2],
+            model: None
         }
     }
 }
 
-impl BicycleModel {
-    pub fn set_ctrl_fn(&mut self, ctrl_fn: fn(&[f64; BICYCLE_NUM_DIMS], &[f64; 2]) -> [f64; 2]) {
+impl<'a> BicycleModel<'a> {
+    pub fn set_ctrl_fn(&mut self, ctrl_fn: fn(&[f64; BICYCLE_NUM_DIMS], &[f64; 2], Option<&SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>) -> [f64; 2]) {
         self.ctrl_fn = ctrl_fn;
     }
 
     pub fn set_goal(&mut self, goal: [f64; 2]) {
         self.goal = goal;
     }
+
+    pub fn set_model(&mut self, model: &'a SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>) {
+        self.model = Some(model);
+    }
+
+    pub fn sample_state_action(&self, state: &[f64; BICYCLE_NUM_DIMS]) -> [f64; 2] {
+        (self.ctrl_fn)(state, &self.goal, self.model)
+    }
 }
 
-impl SystemModel<BICYCLE_NUM_DIMS> for BicycleModel {
+impl SystemModel<BICYCLE_NUM_DIMS> for BicycleModel<'_> {
     fn get_derivative_bounds(
         &self,
         rect: &HyperRectangle<BICYCLE_NUM_DIMS>,
@@ -78,7 +90,7 @@ impl SystemModel<BICYCLE_NUM_DIMS> for BicycleModel {
         &self,
         rect: &HyperRectangle<BICYCLE_NUM_DIMS>,
     ) -> Vec<f64> {
-        (self.ctrl_fn)(&rect.mean_point().dims, &self.goal).to_vec()
+        (self.ctrl_fn)(&rect.mean_point().dims, &self.goal, self.model).to_vec()
     }
 }
 

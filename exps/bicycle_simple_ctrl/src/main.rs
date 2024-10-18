@@ -1,5 +1,6 @@
 use std::f64::consts::PI;
 use std::env;
+use tract_onnx::prelude::*;
 
 use rtreach::obstacle_safety::allocate_obstacles;
 use rtreach::util::{save_states_to_csv, save_reachtubes_to_csv};
@@ -9,18 +10,27 @@ use bicycle::simulate_bicycle::step_bicycle;
 use bicycle::bicycle_model::has_collided;
 use bicycle::dynamics_bicycle::{BicycleModel, BICYCLE_NUM_DIMS as NUM_DIMS};
 use bicycle::utils::{distance, normalize_angle};
-use bicycle::controller::{select_safe_subgoal_rtreach, select_safe_subgoal_circle, goal_conditioned_sample_action};
+use bicycle::controller::{select_safe_subgoal_rtreach, select_safe_subgoal_circle, goal_conditioned_sample_action, model_sample_action};
 
-const STATES_FILE_PATH: &str = "data/bicycle/ctrl/ctrl_states.csv";
-const SUBGOAL_FILE_PATH: &str = "data/bicycle/ctrl/subgoals.csv";
-const REACHTUBE_FILE_PATH: &str = "data/bicycle/ctrl/reachtubes.csv";
-fn main() {
+const STATES_FILE_PATH: &str = "data/bicycle/ctrl_states.csv";
+const SUBGOAL_FILE_PATH: &str = "data/bicycle/subgoals.csv";
+const REACHTUBE_FILE_PATH: &str = "data/bicycle/reachtubes.csv";
+
+fn main() -> TractResult<()> { 
     // Get the current working directory
     let current_dir = env::current_dir().expect("Failed to get current directory");
 
     let states_file_path = current_dir.join(STATES_FILE_PATH);
     let subgoal_file_path = current_dir.join(SUBGOAL_FILE_PATH);
     let reachtube_file_path = current_dir.join(REACHTUBE_FILE_PATH);
+
+    // Load the ONNX model from file
+    let model = tract_onnx::onnx()
+        .model_for_path("models/bicycle_model_actor.onnx")?
+        // specify input type and shape
+        .with_input_fact(0, f64::fact([1, 4]).into())?
+        .into_optimized()?        // Optimize the model for performance
+        .into_runnable()?;         // Make it runnable
 
     let mut bicycle_model = BicycleModel::default();
 
@@ -42,7 +52,7 @@ fn main() {
     // ctrl_input[1] = 0.0;     // heading
 
     // Data Storage
-    let save_data = false;
+    let save_data = true;
     let mut states_vec: Vec<[f64; NUM_DIMS]> = Vec::new();
     let mut subgoal_vec: Vec<[f64; 2]> = Vec::new();
     let mut reachtube_vec: Vec<Vec<HyperRectangle<NUM_DIMS>>> = Vec::new();
@@ -59,10 +69,11 @@ fn main() {
     let thresh = 0.2;
 
     // Control Parameters
+    let learning_enabled = false;
     let use_subgoal_ctrl = true;
     let use_rtreach = true;
     let use_rtreach_dynamic_control = true;
-    let pi_low = goal_conditioned_sample_action;
+    let pi_low = model_sample_action;
     let sim_time = 2.0;
     let wall_time_ms = 100;
     let start_ms = 0;
@@ -71,6 +82,10 @@ fn main() {
     let num_subgoal_cands = 10;
 
     bicycle_model.set_ctrl_fn(pi_low);
+    bicycle_model.set_goal(goal_list[goal_idx]);
+    if learning_enabled {
+        bicycle_model.set_model(&model);
+    }
 
     for i in 0..goal_list.len() {
         println!("Goal {}: [{}, {}]", i, goal_list[i][0], goal_list[i][1]);
@@ -81,13 +96,14 @@ fn main() {
         if distance(&state, &goal_list[goal_idx]) < thresh {
             println!("Goal {} Reached [{}, {}]", goal_idx, goal_list[goal_idx][0], goal_list[goal_idx][1]);
             goal_idx += 1;
+            bicycle_model.set_goal(goal_list[goal_idx]);
         }
 
         let ctrl_input;
         if use_subgoal_ctrl {
             let (safe, subgoal, storage_vec) = 
             if use_rtreach {
-                select_safe_subgoal_rtreach(&pi_low, &mut bicycle_model, state, [start_state[0], start_state[1]], goal_list[goal_idx], num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control)
+                select_safe_subgoal_rtreach(&mut bicycle_model, state, [start_state[0], start_state[1]], goal_list[goal_idx], num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control)
             }
             else{
                 select_safe_subgoal_circle(&state, [start_state[0], start_state[1]], goal_list[goal_idx], num_subgoal_cands*10)
@@ -99,10 +115,11 @@ fn main() {
                 println!("No safe subgoal found");
                 break;
             }
-            ctrl_input = pi_low(&state, &subgoal);
+            bicycle_model.set_goal(subgoal);
+            ctrl_input = bicycle_model.sample_state_action(&state);
         }
         else {
-            ctrl_input = pi_low(&state, &goal_list[goal_idx]);
+            ctrl_input = bicycle_model.sample_state_action(&state);
         }
 
         let mut next_state = step_bicycle(&bicycle_model, &state, ctrl_input[0], ctrl_input[1], step_size);
@@ -134,4 +151,6 @@ fn main() {
         }
     }
     println!("The state after {} s is: \n [{},{},{},{}] \n", time-step_size,state[0],state[1],state[2],state[3]);
+
+    Ok(())
 }

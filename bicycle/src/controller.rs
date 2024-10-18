@@ -1,5 +1,6 @@
 
 use std::f64::consts::PI;
+use tract_onnx::prelude::*;
 
 use rtreach::geometry::HyperRectangle;
 use rtreach::interval::{new_interval, new_interval_v};
@@ -9,21 +10,34 @@ use super::bicycle_model::run_reachability_bicycle;
 use super::dynamics_bicycle::{BicycleModel, BICYCLE_NUM_DIMS as NUM_DIMS};
 use super::utils::{heading_error, distance};
 
-// pub trait GoalConditionedController<const NUM_DIMS: usize, const CTRL_DIMS: usize, const GOAL_DIM: usize> {
-//     fn sample_action(&self, state: &[f64; NUM_DIMS], goal: &[f64; GOAL_DIM]) -> [f64; CTRL_DIMS];
-// }
-
-// pub struct SimpleGoalController;
-
-// impl GoalConditionedController<NUM_DIMS, 2, 2> for SimpleGoalController {
 pub fn goal_conditioned_sample_action(state: &[f64; NUM_DIMS], goal: &[f64; 2]) -> [f64; 2] {
     let vx_des = goal[0] - state[0];
     let vy_des = goal[1] - state[1];
     velocity_controller(&[vx_des, vy_des], state)
 }
-// }
 
-fn velocity_controller(v_des: &[f64], state: &[f64]) -> [f64; 2] {
+pub fn model_sample_action(state: &[f64; NUM_DIMS], goal: &[f64; 2], model: Option<&SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>) -> [f64; 2] {
+    match model {
+        Some(actor) => {
+            let input = tract_ndarray::Array::from_shape_vec((1, 4), vec![goal[0] - state[0], goal[1] - state[1], state[2], state[3]]).unwrap();
+
+            let result = actor.run(tvec!(input.into_tensor().into())).unwrap();
+            let output = result[0].to_array_view::<f32>().unwrap();
+            let model_output = output.iter().collect::<Vec<_>>();
+
+            if model_output.len() == 2 {
+                let v_des =  [*model_output[0] as f64 * 5.0, *model_output[1] as f64 * 5.0];
+                return velocity_controller(&v_des, state)
+            }
+            return [0.0, 0.0];
+        }
+        None => {
+            return goal_conditioned_sample_action(state, goal);
+        }
+    }
+}
+
+pub fn velocity_controller(v_des: &[f64], state: &[f64]) -> [f64; 2] {
     let c_h = -37.1967;
     let c_m: f64 = 0.0342;
     let c_a = 1.9569;
@@ -81,7 +95,6 @@ pub fn select_safe_subgoal_circle(
 // Function to select subgoal based on if its associated control input is safe
 // Output none if no safe subgoal is found
 pub fn select_safe_subgoal_rtreach(
-    ctrl_fn: &dyn Fn(&[f64; NUM_DIMS], &[f64; 2]) -> [f64; 2],
     system_model: &mut BicycleModel, 
     state: [f64; NUM_DIMS],
     start: [f64; 2], 
@@ -100,7 +113,8 @@ pub fn select_safe_subgoal_rtreach(
     let mut control_inputs = Vec::new();
     // Generate control input for each subgoal
     for subgoal in subgoals.iter() {
-        let ctrl_input = ctrl_fn(&state, &subgoal);
+        system_model.set_goal(*subgoal);
+        let ctrl_input = system_model.sample_state_action(&state);
         control_inputs.push(ctrl_input);
     }
     let (safe, idx, storage_vec) = select_safe_control(system_model, state, sim_time, init_step_size, wall_time_ms, start_ms, &subgoals, &control_inputs, store_rect, fixed_step, rtreach_dynamic_control);

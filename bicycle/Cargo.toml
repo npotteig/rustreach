@@ -6,3 +6,5 @@ edition = "2021"
 [dependencies]
 rtreach = { path = "../rtreach" }
 lazy_static = "1.5.0"
+tract = "0.21.7"
+tract-onnx = "0.21.7"
