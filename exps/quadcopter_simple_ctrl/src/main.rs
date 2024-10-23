@@ -1,4 +1,5 @@
 use std::env;
+use tract_onnx::prelude::*;
 
 use rtreach::obstacle_safety::allocate_obstacles;
 use rtreach::util::{save_states_to_csv, save_reachtubes_to_csv};
@@ -7,19 +8,27 @@ use rtreach::geometry::HyperRectangle;
 use quadcopter::simulate_quadcopter::simulate_quadcopter;
 use quadcopter::quadcopter_model::has_collided;
 use quadcopter::dynamics_quadcopter::{QuadcopterModel, QUAD_NUM_DIMS as NUM_DIMS};
-use quadcopter::controller::{select_safe_subgoal_circle, select_safe_subgoal_rtreach, goal_conditioned_sample_action};
+use quadcopter::controller::{select_safe_subgoal_circle, select_safe_subgoal_rtreach, model_sample_action};
 use quadcopter::utils::{distance, normalize_angle};
 
-const STATES_FILE_PATH: &str = "data/quadcopter/ctrl/ctrl_states.csv";
-const SUBGOAL_FILE_PATH: &str = "data/quadcopter/ctrl/subgoals.csv";
-const REACHTUBE_FILE_PATH: &str = "data/quadcopter/ctrl/reachtubes.csv";
-fn main() {
+const STATES_FILE_PATH: &str = "data/quadcopter/ctrl_states.csv";
+const SUBGOAL_FILE_PATH: &str = "data/quadcopter/subgoals.csv";
+const REACHTUBE_FILE_PATH: &str = "data/quadcopter/reachtubes.csv";
+fn main() -> TractResult<()> {
     // Get the current working directory
     let current_dir = env::current_dir().expect("Failed to get current directory");
 
     let states_file_path = current_dir.join(STATES_FILE_PATH);
     let subgoal_file_path = current_dir.join(SUBGOAL_FILE_PATH);
     let reachtube_file_path = current_dir.join(REACHTUBE_FILE_PATH);
+
+    // Load the ONNX model from file
+    let model = tract_onnx::onnx()
+        .model_for_path("models/quadcopter_model_actor.onnx")?
+        // specify input type and shape
+        .with_input_fact(0, f64::fact([1, 12]).into())?
+        .into_optimized()?        // Optimize the model for performance
+        .into_runnable()?;         // Make it runnable
 
     let mut quadcopter_model = QuadcopterModel::default();
 
@@ -29,7 +38,7 @@ fn main() {
 
     // Start & Goal States
     let mut start_state = [0.0; NUM_DIMS];
-    start_state[7] = 0.5; // v_y
+    start_state[7] = 0.6; // v_y
     let goal_list = [[4., 0., 0.]];
     let mut goal_idx = 0;
 
@@ -58,10 +67,11 @@ fn main() {
     let thresh = 0.25;
 
     // Control Parameters
+    let learning_enabled = true;
     let use_subgoal_ctrl = true;
-    let use_rtreach = false;
-    let use_rtreach_dynamic_control = false;
-    let pi_low = goal_conditioned_sample_action;
+    let use_rtreach = true;
+    let use_rtreach_dynamic_control = true;
+    let pi_low = model_sample_action;
     let sim_time = 2.0;
     let wall_time_ms = 100;
     let start_ms = 0;
@@ -70,6 +80,10 @@ fn main() {
     let num_subgoal_cands = 10;
 
     quadcopter_model.set_ctrl_fn(pi_low);
+    quadcopter_model.set_goal(goal_list[goal_idx]);
+    if learning_enabled {
+        quadcopter_model.set_model(&model);
+    }
 
     for i in 0..goal_list.len() {
         println!("Goal {}: [{}, {}, {}]", i, goal_list[i][0], goal_list[i][1], goal_list[i][2]);
@@ -91,7 +105,7 @@ fn main() {
         if use_subgoal_ctrl {
             let (safe, subgoal, storage_vec) = 
             if use_rtreach {
-                select_safe_subgoal_rtreach(&pi_low, &mut quadcopter_model, state, [start_state[0], start_state[1], start_state[2]], goal_list[goal_idx], num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control)
+                select_safe_subgoal_rtreach(&mut quadcopter_model, state, [start_state[0], start_state[1], start_state[2]], goal_list[goal_idx], num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control)
             }
             else{
                 select_safe_subgoal_circle(&state, [start_state[0], start_state[1], start_state[2]], goal_list[goal_idx], num_subgoal_cands*10)
@@ -103,10 +117,11 @@ fn main() {
             }
             subgoal_vec.push(subgoal);
             reachtube_vec.push(storage_vec);
-            ctrl_input = pi_low(&state, &subgoal).to_vec();
+            quadcopter_model.set_goal(subgoal);
+            ctrl_input = quadcopter_model.sample_state_action(&state).to_vec();
         }
         else {
-            ctrl_input = pi_low(&state, &goal_list[goal_idx]).to_vec();
+            ctrl_input = quadcopter_model.sample_state_action(&state).to_vec();
         }
         // println!("Control Input: {:?}", ctrl_input);
 
@@ -146,4 +161,6 @@ fn main() {
         println!("x[{}]: {}", i, state[i]);
     }
     println!();
+
+    Ok(())
 }

@@ -1,3 +1,5 @@
+use tract_onnx::prelude::*;
+
 use rtreach::geometry::HyperRectangle;
 use rtreach::interval::{new_interval, new_interval_v};
 use rtreach::obstacle_safety::check_safety_obstacles_circumscribe;
@@ -24,19 +26,43 @@ const K_P_P: f64 = 1.5;
 const K_P_Q: f64 = 1.5;
 const K_P_R: f64 = 1.0;
 
-// pub trait GoalConditionedController<const NUM_DIMS: usize, const CTRL_DIMS: usize, const GOAL_DIM: usize> {
-//     fn sample_action(&self, state: &[f64; NUM_DIMS], goal: &[f64; GOAL_DIM]) -> [f64; CTRL_DIMS];
-// }
-
-// pub struct SimpleGoalController;
-
-// impl GoalConditionedController<NUM_DIMS, 4, 3> for SimpleGoalController {
 pub fn goal_conditioned_sample_action(state: &[f64; NUM_DIMS], goal: &[f64; 3]) -> [f64; 4] {
     let vx_des = goal[0] - state[0];
     let vy_des = goal[1] - state[1];
     xy_vel_z_pos_controller(vx_des, vy_des, goal[2], true, state)
 }
-// }
+
+pub fn model_sample_action(state: &[f64; NUM_DIMS], goal: &[f64; 3], model: Option<&SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>) -> [f64; 4] {
+    match model {
+        Some(actor) => {
+            let input = tract_ndarray::Array::from_shape_vec((1, 12), vec![goal[0] - state[0], 
+                                                                                                                goal[1] - state[1], 
+                                                                                                                goal[2] - state[2], 
+                                                                                                                state[3],
+                                                                                                                state[4],
+                                                                                                                state[5],
+                                                                                                                state[6],
+                                                                                                                state[7],
+                                                                                                                state[8],
+                                                                                                                state[9],
+                                                                                                                state[10],
+                                                                                                                state[11]]).unwrap();
+
+            let result = actor.run(tvec!(input.into_tensor().into())).unwrap();
+            let output = result[0].to_array_view::<f32>().unwrap();
+            let model_output = output.iter().collect::<Vec<_>>();
+
+            if model_output.len() == 2 {
+                let v_des =  [*model_output[0] as f64 * 5.0, *model_output[1] as f64 * 5.0];
+                return xy_vel_z_pos_controller(v_des[0], v_des[1], goal[2], true, state)
+            }
+            return [0.0, 0.0, 0.0, 0.0];
+        }
+        None => {
+            return goal_conditioned_sample_action(state, goal);
+        }
+    }
+}
 
 pub fn xy_vel_z_pos_controller(
     x_dot_des: f64,
@@ -164,7 +190,6 @@ fn select_safe_control(
 // Function to select subgoal based on if its associated control input is safe
 // Output none if no safe subgoal is found
 pub fn select_safe_subgoal_rtreach(
-    ctrl_fn: &dyn Fn(&[f64; NUM_DIMS], &[f64; 3]) -> [f64; 4],
     system_model: &mut QuadcopterModel, 
     state: [f64; NUM_DIMS],
     start: [f64; 3], 
@@ -183,7 +208,8 @@ pub fn select_safe_subgoal_rtreach(
     let mut control_inputs = Vec::new();
     // Generate control input for each subgoal
     for subgoal in subgoals.iter() {
-        let ctrl_input = ctrl_fn(&state, &subgoal);
+        system_model.set_goal(*subgoal);
+        let ctrl_input = system_model.sample_state_action(&state);
         control_inputs.push(ctrl_input);
     }
     let (safe, idx, storage_vec) = select_safe_control(system_model, state, sim_time, init_step_size, wall_time_ms, start_ms, &subgoals, &control_inputs, store_rect, fixed_step, rtreach_dynamic_control);
