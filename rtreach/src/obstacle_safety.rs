@@ -150,7 +150,7 @@ pub fn check_safety_wall<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>)
     let wall_coords_guard: &Option<Vec<Vec<f64>>> = &*WALL_COORDS.lock().unwrap();
     let file_rows: u32 = *FILE_ROWS.lock().unwrap();  // Get the value of file_rows
     
-    let mut safe: bool = true;
+    let mut safe_val: bool = true;
 
     match wall_coords_guard {
         Some(wall_coords) => {
@@ -162,8 +162,8 @@ pub fn check_safety_wall<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>)
                     [wall_coords[i as usize][1], wall_coords[i as usize][1]],
                 ];
                 
-                safe = check_safety(rect, &point);
-                if !safe {
+                safe_val = check_safety(rect, &point);
+                if !safe_val {
                     // Uncomment the next line to print the offending point
                     println!("offending point ({}, {})", wall_coords[i as usize][0], wall_coords[i as usize][1]);
                     break;
@@ -171,11 +171,11 @@ pub fn check_safety_wall<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>)
             }
         },
         None => {
-            safe = true;
+            safe_val = true;
         }
     }
     
-    safe
+    safe_val
 }
 
 pub fn allocate_obstacles(num_obstacles: u32, points: &[[f64; 2]]){
