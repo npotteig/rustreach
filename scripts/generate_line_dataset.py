@@ -1,6 +1,8 @@
 import numpy as np
 import csv
 from tqdm import tqdm
+
+USE_BICYCLE = False
     
 def generate_start_goal_pairs(n, 
                               obstacles, 
@@ -50,7 +52,10 @@ def is_collision_point(point, obstacle, width, vehicle_width, vehicle_height):
 if __name__ == '__main__':
     n = 1
     
-    save_path = 'eval_input_data/bicycle/line_dataset_1.csv'
+    if USE_BICYCLE:
+        save_path = 'eval_input_data/bicycle/line_dataset.csv'
+    else: 
+        save_path = 'eval_input_data/quadcopter/line_dataset.csv'
     
     obstacles = [[2.0, 0.7], [2.0, -0.7]]
     width = 0.5
@@ -59,9 +64,12 @@ if __name__ == '__main__':
     goal_bounds = [3.5, 4.5]
     
     vehicle_start_bounds = [-0.75, 0.75]
-    
-    vehicle_width = 0.7 # buffer of 0.05 on each side
-    vehicle_height = 0.5 # buffer of 0.05 on each side
+    if USE_BICYCLE:
+        vehicle_width = 0.7 # buffer of 0.1 on each side
+        vehicle_height = 0.5 # buffer of 0.1 on each side
+    else:
+        vehicle_width = 0.52 # buffer of 0.1 on each side
+        vehicle_height = 0.52 # buffer of 0.1 on each side
     
     vehicle_start_locations = np.random.uniform(vehicle_start_bounds[0], vehicle_start_bounds[1], (n, 2))
     start_goal_pairs = generate_start_goal_pairs(n, obstacles, width, vehicle_width, vehicle_height, start_bounds, goal_bounds)
