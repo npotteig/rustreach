@@ -50,7 +50,7 @@ def is_collision_point(point, obstacle, width, vehicle_width, vehicle_height):
     return False
 
 if __name__ == '__main__':
-    n = 1
+    n = 1000
     
     if USE_BICYCLE:
         save_path = 'eval_input_data/bicycle/line_dataset.csv'
