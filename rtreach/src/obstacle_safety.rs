@@ -1,6 +1,8 @@
+use core::alloc;
 use std::sync::Mutex;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
+use csv::ReaderBuilder;
 use lazy_static::lazy_static;
 use super::geometry::HyperRectangle;
 use super::util::distance_2d;
@@ -178,7 +180,21 @@ pub fn check_safety_wall<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>)
     safe_val
 }
 
+pub fn load_obstacles_from_csv(filename: &std::path::PathBuf){
+    let mut obstacles_vec: Vec<[f64; 2]> = vec![];
+    println!("Loading obstacles from file: {:?}", filename);
+    let mut reader = ReaderBuilder::new().has_headers(false).from_path(filename).unwrap();
+    for result in reader.records() {
+        let record = result.unwrap();
+        let x = record.get(0).unwrap().parse::<f64>().unwrap();
+        let y = record.get(1).unwrap().parse::<f64>().unwrap();
+        obstacles_vec.push([x, y]);
+    }
+    allocate_obstacles(obstacles_vec.len() as u32, &obstacles_vec);
+}
+
 pub fn allocate_obstacles(num_obstacles: u32, points: &[[f64; 2]]){
+    println!("Allocating {} obstacles", num_obstacles);
     let rows: usize = num_obstacles as usize;
     let mut obstacle_count = OBSTACLE_COUNT.lock().unwrap();
     *obstacle_count = num_obstacles;
@@ -187,16 +203,16 @@ pub fn allocate_obstacles(num_obstacles: u32, points: &[[f64; 2]]){
     let w: f64 = 0.5;
     let h: f64 = 0.5;
 
-    println!("interval list of obstacles: ");
+    // println!("interval list of obstacles: ");
     let mut obstacles = vec![vec![vec![0.0; cols]; height]; rows];
     for i in 0..rows {
         obstacles[i][0][0] = points[i][0] - w/2.0;
         obstacles[i][0][1] = points[i][0] + w/2.0;
         obstacles[i][1][0] = points[i][1] - h/2.0;
         obstacles[i][1][1] = points[i][1] + h/2.0;
-        println!("[{}, {}], [{}, {}]", obstacles[i][0][0], obstacles[i][0][1], obstacles[i][1][0], obstacles[i][1][1]);
+        // println!("[{}, {}], [{}, {}]", obstacles[i][0][0], obstacles[i][0][1], obstacles[i][1][0], obstacles[i][1][1]);
     }
-    println!();
+    // println!();
     {
         let mut obstacles_lock = OBSTACLES.lock().unwrap();
         *obstacles_lock = Some(obstacles);

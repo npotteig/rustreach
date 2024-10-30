@@ -1,6 +1,6 @@
-use std::str::FromStr;
 use std::sync::Mutex;
 use csv::Writer;
+use csv::ReaderBuilder;
 use lazy_static::lazy_static;
 use super::geometry::println;
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
@@ -76,6 +76,29 @@ pub fn save_reachtubes_to_csv<const NUM_DIMS: usize>(filename: &str, data: &Vec<
         }
     }
     wtr.flush().unwrap();
+}
+
+pub fn load_paths_from_csv(filename: &std::path::PathBuf) -> Vec<Vec<[f64; 3]>>{
+    let mut paths: Vec<Vec<[f64; 3]>> = vec![];
+    println!("Loading paths from file: {:?}", filename);
+    let mut reader = ReaderBuilder::new().has_headers(true).from_path(filename).unwrap();
+    let mut cur_path_id = 0;
+    let mut path: Vec<[f64; 3]> = vec![];
+    for result in reader.records() {
+        let record = result.unwrap();
+        let path_id = record.get(0).unwrap().parse::<i32>().unwrap();
+        let x = record.get(1).unwrap().parse::<f64>().unwrap();
+        let y = record.get(2).unwrap().parse::<f64>().unwrap();
+        let z = record.get(3).unwrap().parse::<f64>().unwrap();
+        if path_id != cur_path_id {
+            paths.push(path);
+            path = vec![];
+            cur_path_id = path_id;
+        }
+        path.push([x, y, z]);
+    }
+    paths.push(path);
+    paths
 }
 
 

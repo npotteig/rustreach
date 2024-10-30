@@ -131,6 +131,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bicycle_path_exp"
+version = "0.1.0"
+dependencies = [
+ "bicycle",
+ "csv",
+ "rtreach",
+ "tract",
+ "tract-onnx",
+]
+
+[[package]]
 name = "bicycle_simple_ctrl"
 version = "0.1.0"
 dependencies = [

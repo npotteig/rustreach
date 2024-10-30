@@ -1,0 +1,11 @@
+[package]
+name = "bicycle_path_exp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rtreach = { path = "../../rtreach" }
+bicycle = { path = "../../bicycle" }
+tract = "0.21.7"
+tract-onnx = "0.21.7"
+csv = "1.3.0"
