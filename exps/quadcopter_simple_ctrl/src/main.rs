@@ -105,10 +105,10 @@ fn main() -> TractResult<()> {
         if use_subgoal_ctrl {
             let (safe, subgoal, storage_vec) = 
             if use_rtreach {
-                select_safe_subgoal_rtreach(&mut quadcopter_model, state, [start_state[0], start_state[1], start_state[2]], goal_list[goal_idx], num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control)
+                select_safe_subgoal_rtreach(&mut quadcopter_model, state, [start_state[0], start_state[1], start_state[2]], goal_list[goal_idx], num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control, false)
             }
             else{
-                select_safe_subgoal_circle(&state, [start_state[0], start_state[1], start_state[2]], goal_list[goal_idx], num_subgoal_cands*10)
+                select_safe_subgoal_circle(&state, [start_state[0], start_state[1], start_state[2]], goal_list[goal_idx], num_subgoal_cands*10, false)
             };
             
             if !safe {

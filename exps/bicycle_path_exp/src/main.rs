@@ -105,10 +105,10 @@ fn main() -> TractResult<()> {
                 let start_time = Instant::now();
                 let (safe, subgoal, _) = 
                 if use_rtreach {
-                    select_safe_subgoal_rtreach(&mut bicycle_model, state, prev_goal_waypoint, cur_goal_waypoint, num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control)
+                    select_safe_subgoal_rtreach(&mut bicycle_model, state, prev_goal_waypoint, cur_goal_waypoint, num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control, true)
                 }
                 else{
-                    select_safe_subgoal_circle(&state, prev_goal_waypoint, cur_goal_waypoint, num_subgoal_cands*10)
+                    select_safe_subgoal_circle(&state, prev_goal_waypoint, cur_goal_waypoint, num_subgoal_cands*10, true)
                 };
                 let duration = start_time.elapsed().as_micros() as f64;
 

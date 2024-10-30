@@ -10,7 +10,7 @@ use bicycle::simulate_bicycle::step_bicycle;
 use bicycle::bicycle_model::has_collided;
 use bicycle::dynamics_bicycle::{BicycleModel, BICYCLE_NUM_DIMS as NUM_DIMS};
 use bicycle::utils::{distance, normalize_angle};
-use bicycle::controller::{select_safe_subgoal_rtreach, select_safe_subgoal_circle, goal_conditioned_sample_action, model_sample_action};
+use bicycle::controller::{select_safe_subgoal_rtreach, select_safe_subgoal_circle, model_sample_action};
 
 const STATES_FILE_PATH: &str = "data/bicycle/ctrl_states.csv";
 const SUBGOAL_FILE_PATH: &str = "data/bicycle/subgoals.csv";
@@ -103,10 +103,10 @@ fn main() -> TractResult<()> {
         if use_subgoal_ctrl {
             let (safe, subgoal, storage_vec) = 
             if use_rtreach {
-                select_safe_subgoal_rtreach(&mut bicycle_model, state, [start_state[0], start_state[1]], goal_list[goal_idx], num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control)
+                select_safe_subgoal_rtreach(&mut bicycle_model, state, [start_state[0], start_state[1]], goal_list[goal_idx], num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control, false)
             }
             else{
-                select_safe_subgoal_circle(&state, [start_state[0], start_state[1]], goal_list[goal_idx], num_subgoal_cands*10)
+                select_safe_subgoal_circle(&state, [start_state[0], start_state[1]], goal_list[goal_idx], num_subgoal_cands*10, false)
             };
             
             subgoal_vec.push(subgoal);

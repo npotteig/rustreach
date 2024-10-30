@@ -107,7 +107,7 @@ pub fn xy_vel_z_pos_controller(
 // Function to generate subgoal candiates evenly spaced along the path
 // Inputs: start and goal points, number of subgoals to generate
 // Output: Vector of subgoal candidates
-fn generate_linear_subgoals(start: &[f64; 3], goal: &[f64; 3], num_subgoals: u32) -> Vec<[f64; 3]> {
+fn generate_linear_subgoals_simple(start: &[f64; 3], goal: &[f64; 3], num_subgoals: u32) -> Vec<[f64; 3]> {
     let mut subgoals = Vec::new();
     let dx = (goal[0] - start[0]) / num_subgoals as f64;
     let dy = (goal[1] - start[1]) / num_subgoals as f64;
@@ -118,13 +118,80 @@ fn generate_linear_subgoals(start: &[f64; 3], goal: &[f64; 3], num_subgoals: u32
     subgoals
 }
 
+fn generate_linear_subgoals_sliding(
+    start: &[f64; 3],
+    goal: &[f64; 3],
+    robot_position: &[f64; 3],
+    num_subgoals: u32,
+    range_behind: f64,
+    range_ahead: f64,
+) -> Vec<[f64; 3]> {
+    let mut subgoals = Vec::new();
+    
+    // Vector from start to goal
+    let line_vec = [goal[0] - start[0], goal[1] - start[1]];
+    let line_length = (line_vec[0].powi(2) + line_vec[1].powi(2)).sqrt();
+    let unit_line_vec = [line_vec[0] / line_length, line_vec[1] / line_length];
+
+    // Vector from start to robot position
+    let to_robot_vec = [robot_position[0] - start[0], robot_position[1] - start[1]];
+    let projection_length = to_robot_vec[0] * unit_line_vec[0] + to_robot_vec[1] * unit_line_vec[1];
+    
+    // Projected point on the line
+    let projected_point = [
+        start[0] + projection_length * unit_line_vec[0],
+        start[1] + projection_length * unit_line_vec[1],
+    ];
+
+    // Define the segment start and end around the projected point
+    let mut segment_start = [
+        projected_point[0] - range_behind * unit_line_vec[0],
+        projected_point[1] - range_behind * unit_line_vec[1],
+    ];
+    let mut segment_end = [
+        projected_point[0] + range_ahead * unit_line_vec[0],
+        projected_point[1] + range_ahead * unit_line_vec[1],
+    ];
+
+    // Trim segment start if it is behind the `start` point
+    if (segment_start[0] - start[0]) * unit_line_vec[0] + (segment_start[1] - start[1]) * unit_line_vec[1] < 0.0 {
+        segment_start = [start[0], start[1]];
+    }
+
+    // Trim segment end if it is ahead of the `goal` point
+    if (segment_end[0] - goal[0]) * unit_line_vec[0] + (segment_end[1] - goal[1]) * unit_line_vec[1] > 0.0 {
+        segment_end = [goal[0], goal[1]];
+    }
+
+    // Divide the segment into `num_subgoals` evenly spaced points
+    let dx = (segment_end[0] - segment_start[0]) / num_subgoals as f64;
+    let dy = (segment_end[1] - segment_start[1]) / num_subgoals as f64;
+
+    for i in 0..=num_subgoals {
+        let subgoal = [
+            segment_start[0] + i as f64 * dx,
+            segment_start[1] + i as f64 * dy,
+            0.0,
+        ];
+        subgoals.push(subgoal);
+    }
+    
+    subgoals
+}
+
 pub fn select_safe_subgoal_circle(
     state: &[f64; NUM_DIMS],
     start: [f64; 3], 
     goal: [f64; 3],
     num_subgoal_cands: u32,
+    sliding_window: bool,
 )-> (bool, [f64; 3], Vec<HyperRectangle<NUM_DIMS>>){
-    let mut subgoals = generate_linear_subgoals(&start, &goal, num_subgoal_cands);
+    let mut subgoals = 
+    if sliding_window{
+        generate_linear_subgoals_sliding(&start, &goal, &[state[0], state[1], state[2]], num_subgoal_cands, 1.0, 5.0)
+    } else {
+        generate_linear_subgoals_simple(&start, &goal, num_subgoal_cands)
+    };
     subgoals.reverse(); // Reverse the order to prioritize subgoals closer to the goal
     for subgoal in subgoals.iter() {
         let rad_des = distance(state, subgoal);
@@ -202,8 +269,14 @@ pub fn select_safe_subgoal_rtreach(
     store_rect: bool,
     fixed_step: bool,
     rtreach_dynamic_control: bool,
+    sliding_window: bool,
 ) -> (bool, [f64; 3], Vec<HyperRectangle<NUM_DIMS>>) {
-    let mut subgoals = generate_linear_subgoals(&start, &goal, num_subgoal_cands);
+    let mut subgoals = 
+    if sliding_window{
+        generate_linear_subgoals_sliding(&start, &goal, &[state[0], state[1], state[2]], num_subgoal_cands, 1.0, 5.0)
+    } else {
+        generate_linear_subgoals_simple(&start, &goal, num_subgoal_cands)
+    };
     subgoals.reverse(); // Reverse the order to prioritize subgoals closer to the goal
     let mut control_inputs = Vec::new();
     // Generate control input for each subgoal
