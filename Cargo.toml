@@ -10,5 +10,6 @@ members = [
     "exps/bicycle_line_exp", 
     "exps/quadcopter_line_exp", 
     "exps/bicycle_path_exp", 
+    "exps/quadcopter_path_exp", 
 ]
 
