@@ -6,3 +6,5 @@ edition = "2021"
 [dependencies]
 rtreach = { path = "../../rtreach" }
 bicycle = { path = "../../bicycle" }
+tract = "0.21.7"
+tract-onnx = "0.21.7"

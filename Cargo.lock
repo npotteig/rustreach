@@ -157,6 +157,8 @@ version = "0.1.0"
 dependencies = [
  "bicycle",
  "rtreach",
+ "tract",
+ "tract-onnx",
 ]
 
 [[package]]
