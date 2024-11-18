@@ -96,7 +96,7 @@ def plot_sg_select(states_df, sg_df, rects_good_df, rects_bad_df, save_path=None
     rect.set_transform(rotation + ax.transData)
     ax.add_patch(rect)
     ax.plot(state['dim0'], state['dim1'], color='black', marker='o', markersize=5)
-    ax.text(state['dim0'] - 0.1, state['dim1'] - 0.1, r"$s_t$", fontsize=18, color='black', fontweight='bold')
+    ax.text(state['dim0'] - 0.1, state['dim1'] - 0.1, r"$x_t$", fontsize=18, color='black', fontweight='bold')
     
     ax.plot([0, 4], [0, 0], color='black', linestyle='--')
     # ax.plot([2], [0], color='blue', marker='o', markersize=10)

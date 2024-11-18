@@ -117,7 +117,7 @@ def plot_states(states_df, states2_df=None, save_path=None, title=None):
             ax.plot(row['dim0'], row['dim1'], color='black', marker='o', markersize=5)
     ax.plot([0, 4], [0, 0], color='black', linestyle='--')
     ax.plot([2], [0], color='blue', marker='o', markersize=10)
-    ax.text(2 - 0.5, 0 - 0.2, "SubGoal", fontsize=18, color='black', fontweight='bold')
+    ax.text(2 - 0.5, 0 - 0.2, "Subgoal", fontsize=18, color='black', fontweight='bold')
     ax.plot([4], [0], color='green', marker='o', markersize=25)
     ax.text(4-0.1, 0 - 0.5, r"$W_j$", fontsize=24, color='black', fontweight='bold')
     ax.plot([0], [0], color='green', marker='o', markersize=25)

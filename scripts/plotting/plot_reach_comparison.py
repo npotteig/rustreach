@@ -29,8 +29,8 @@ def plot_reach(states_df, rects_fc_df, rects_dc_df, save_path=None):
                 max_1 - min_1,
                 edgecolor='none',
                 facecolor='lightgreen',
-                alpha=0.5,
-                label='DC Reach'
+                alpha=0.75,
+                label='RLC Reach'
             ))
         else:
             ax.add_patch(patches.Rectangle(
@@ -39,7 +39,7 @@ def plot_reach(states_df, rects_fc_df, rects_dc_df, save_path=None):
                 max_1 - min_1,
                 edgecolor='none',
                 facecolor='lightgreen',
-                alpha=0.5
+                alpha=0.75
             ))
     
     for i, row in rects_fc_df.iloc[:-1].iterrows():
@@ -54,7 +54,7 @@ def plot_reach(states_df, rects_fc_df, rects_dc_df, save_path=None):
                 max_1 - min_1,
                 edgecolor='none',
                 facecolor='orange',
-                alpha=0.5,
+                alpha=0.3,
                 label='FC Reach'
             ))
         else:
@@ -64,7 +64,7 @@ def plot_reach(states_df, rects_fc_df, rects_dc_df, save_path=None):
                 max_1 - min_1,
                 edgecolor='none',
                 facecolor='orange',
-                alpha=0.5
+                alpha=0.3
             ))
     
     ax.plot([1], [1], color='gold', marker='*', markersize=50)
@@ -76,8 +76,8 @@ def plot_reach(states_df, rects_fc_df, rects_dc_df, save_path=None):
         plt.savefig(save_path, bbox_inches='tight')
 
 if __name__ == '__main__':
-    states_df = pd.read_csv('data/bicycle/paper/approach/reach_comparison/gt_ctrl_states.csv')
-    rects_fc_df = pd.read_csv('data/bicycle/paper/approach/reach_comparison/rects_fc.csv')
-    rects_dc_df = pd.read_csv('data/bicycle/paper/approach/reach_comparison/rects_dc.csv')
+    states_df = pd.read_csv('data/bicycle/paper/approach/reach_comparision/gt_ctrl_states.csv')
+    rects_fc_df = pd.read_csv('data/bicycle/paper/approach/reach_comparision/rects_fc.csv')
+    rects_dc_df = pd.read_csv('data/bicycle/paper/approach/reach_comparision/rects_dc.csv')
     plot_reach(states_df, rects_fc_df, rects_dc_df, save_path='figs/paper/reach_comparison.pdf')
     
