@@ -1,5 +1,6 @@
 use std::f64::consts::PI;
 use std::env;
+use std::fs;
 use tract_onnx::prelude::*;
 
 use rtreach::obstacle_safety::allocate_obstacles;
@@ -12,17 +13,25 @@ use bicycle::dynamics_bicycle::{BicycleModel, BICYCLE_NUM_DIMS as NUM_DIMS};
 use bicycle::utils::{distance, normalize_angle};
 use bicycle::controller::{select_safe_subgoal_rtreach, select_safe_subgoal_circle, model_sample_action};
 
-const STATES_FILE_PATH: &str = "data/bicycle/ctrl_states.csv";
-const SUBGOAL_FILE_PATH: &str = "data/bicycle/subgoals.csv";
-const REACHTUBE_FILE_PATH: &str = "data/bicycle/reachtubes.csv";
+const STATES_FILE_PATH: &str = "data/bicycle/simple_ctrl/ctrl_states.csv";
+const SUBGOAL_FILE_PATH: &str = "data/bicycle/simple_ctrl/subgoals.csv";
+const REACHTUBE_FILE_PATH: &str = "data/bicycle/simple_ctrl/reachtubes.csv";
 
 fn main() -> TractResult<()> { 
+    let save_data = false;
     // Get the current working directory
     let current_dir = env::current_dir().expect("Failed to get current directory");
 
     let states_file_path = current_dir.join(STATES_FILE_PATH);
     let subgoal_file_path = current_dir.join(SUBGOAL_FILE_PATH);
     let reachtube_file_path = current_dir.join(REACHTUBE_FILE_PATH);
+
+    if save_data{
+        if let Some(parent) = states_file_path.parent() {
+            println!("Saving data to: {:?}", parent);
+            fs::create_dir_all(parent)?; // Creates parent directories if they don't exist
+        }
+    }
 
     // Load the ONNX model from file
     let model = tract_onnx::onnx()
@@ -52,7 +61,6 @@ fn main() -> TractResult<()> {
     // ctrl_input[1] = 0.0;     // heading
 
     // Data Storage
-    let save_data = true;
     let mut states_vec: Vec<[f64; NUM_DIMS]> = Vec::new();
     let mut subgoal_vec: Vec<[f64; 2]> = Vec::new();
     let mut reachtube_vec: Vec<Vec<HyperRectangle<NUM_DIMS>>> = Vec::new();
@@ -69,7 +77,7 @@ fn main() -> TractResult<()> {
     let thresh = 0.2;
 
     // Control Parameters
-    let learning_enabled = false;
+    let learning_enabled = true;
     let use_subgoal_ctrl = true;
     let use_rtreach = true;
     let use_rtreach_dynamic_control = true;

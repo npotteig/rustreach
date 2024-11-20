@@ -1,4 +1,5 @@
 use std::env;
+use std::fs;
 use tract_onnx::prelude::*;
 
 use rtreach::obstacle_safety::allocate_obstacles;
@@ -11,16 +12,23 @@ use quadcopter::dynamics_quadcopter::{QuadcopterModel, QUAD_NUM_DIMS as NUM_DIMS
 use quadcopter::controller::{select_safe_subgoal_circle, select_safe_subgoal_rtreach, model_sample_action};
 use quadcopter::utils::{distance, normalize_angle};
 
-const STATES_FILE_PATH: &str = "data/quadcopter/ctrl_states.csv";
-const SUBGOAL_FILE_PATH: &str = "data/quadcopter/subgoals.csv";
-const REACHTUBE_FILE_PATH: &str = "data/quadcopter/reachtubes.csv";
+const STATES_FILE_PATH: &str = "data/quadcopter/simple_ctrl/ctrl_states.csv";
+const SUBGOAL_FILE_PATH: &str = "data/quadcopter/simple_ctrl/subgoals.csv";
+const REACHTUBE_FILE_PATH: &str = "data/quadcopter/simple_ctrl/reachtubes.csv";
 fn main() -> TractResult<()> {
+    let save_data = false;
     // Get the current working directory
     let current_dir = env::current_dir().expect("Failed to get current directory");
 
     let states_file_path = current_dir.join(STATES_FILE_PATH);
     let subgoal_file_path = current_dir.join(SUBGOAL_FILE_PATH);
     let reachtube_file_path = current_dir.join(REACHTUBE_FILE_PATH);
+    if save_data{
+        if let Some(parent) = states_file_path.parent() {
+            println!("Saving data to: {:?}", parent);
+            fs::create_dir_all(parent)?; // Creates parent directories if they don't exist
+        }
+    }
 
     // Load the ONNX model from file
     let model = tract_onnx::onnx()
@@ -49,7 +57,6 @@ fn main() -> TractResult<()> {
     // ctrl_input[3] = 0.0;     // z torque
 
     // Data Storage
-    let save_data = false;
     let mut states_vec: Vec<[f64; NUM_DIMS]> = Vec::new();
     let mut subgoal_vec: Vec<[f64; 3]> = Vec::new();
     let mut reachtube_vec: Vec<Vec<HyperRectangle<NUM_DIMS>>> = Vec::new();

@@ -1,5 +1,6 @@
 use std::{env, vec};
 use std::time::Instant;
+use std::fs;
 
 use tract_onnx::prelude::*;
 
@@ -17,7 +18,7 @@ const OBSTACLE_DATASET_PATH: &str = "eval_input_data/rr_nbd_obstacles.csv";
 const EVAL_OUTPUT_PATH: &str = "eval_output_data/bicycle/path_exp/path_eval_output.csv";
 
 fn main() -> TractResult<()> {
-    let save_data = true;
+    let save_data = false;
 
     // Get the current working directory
     let current_dir: std::path::PathBuf = env::current_dir().expect("Failed to get current directory");
@@ -25,6 +26,13 @@ fn main() -> TractResult<()> {
     let path_dataset_path = current_dir.join(PATH_DATASET_PATH);
     let obstacle_dataset_path = current_dir.join(OBSTACLE_DATASET_PATH);
     let eval_output_path = current_dir.join(EVAL_OUTPUT_PATH);
+
+    if save_data{
+        if let Some(parent) = eval_output_path.parent() {
+            println!("Saving data to: {:?}", parent);
+            fs::create_dir_all(parent)?; // Creates parent directories if they don't exist
+        }
+    }
 
     let paths_vec = load_paths_from_csv(&path_dataset_path);
     load_obstacles_from_csv(&obstacle_dataset_path);
@@ -49,9 +57,9 @@ fn main() -> TractResult<()> {
 
     // Control Parameters
     let learning_enabled = true;
-    let use_subgoal_ctrl = false;
-    let use_rtreach = false;
-    let use_rtreach_dynamic_control = false;
+    let use_subgoal_ctrl = true;
+    let use_rtreach = true;
+    let use_rtreach_dynamic_control = true;
     let pi_low = model_sample_action;
     let sim_time = 2.0;
     let wall_time_ms = 100;

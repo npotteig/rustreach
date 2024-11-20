@@ -1,5 +1,6 @@
 use std::{env, vec};
 use std::time::Instant;
+use std::fs;
 
 use csv::ReaderBuilder;
 use tract_onnx::prelude::*;
@@ -16,13 +17,20 @@ const LINE_DATASET_PATH: &str = "eval_input_data/quadcopter/line_dataset.csv";
 const EVAL_OUTPUT_PATH: &str = "eval_output_data/quadcopter/line_exp/line_eval_output.csv";
 
 fn main() -> TractResult<()> {
-    let save_data = true;
+    let save_data = false;
 
     // Get the current working directory
     let current_dir = env::current_dir().expect("Failed to get current directory");
 
     let line_dataset_path = current_dir.join(LINE_DATASET_PATH);
     let eval_output_path = current_dir.join(EVAL_OUTPUT_PATH);
+
+    if save_data{
+        if let Some(parent) = eval_output_path.parent() {
+            println!("Saving data to: {:?}", parent);
+            fs::create_dir_all(parent)?; // Creates parent directories if they don't exist
+        }
+    }
 
     // Create a CSV reader
     let mut rdr = ReaderBuilder::new()
@@ -54,16 +62,16 @@ fn main() -> TractResult<()> {
 
     // Control Parameters
     let learning_enabled = true;
-    let use_subgoal_ctrl = false;
-    let use_rtreach = false;
-    let use_rtreach_dynamic_control = false;
+    let use_subgoal_ctrl = true;
+    let use_rtreach = true;
+    let use_rtreach_dynamic_control = true;
     let pi_low = model_sample_action;
     let sim_time = 2.0;
     let wall_time_ms = 100;
     let start_ms = 0;
     let store_rect = false;
     let fixed_step = false;
-    let num_subgoal_cands = 20;
+    let num_subgoal_cands = 5;
 
     quad_model.set_ctrl_fn(pi_low);
     if learning_enabled {

@@ -1619,6 +1619,8 @@ version = "0.1.0"
 dependencies = [
  "quadcopter",
  "rtreach",
+ "tract",
+ "tract-onnx",
 ]
 
 [[package]]

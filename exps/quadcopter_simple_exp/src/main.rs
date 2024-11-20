@@ -1,60 +1,117 @@
 use std::env;
+use std::fs;
 
-use rtreach::face_lift::ITERATIONS_AT_QUIT;
-use quadcopter::dynamics_quadcopter::{self, QuadcopterModel};
-use quadcopter::quadcopter_model::{get_simulated_safe_time, run_reachability_quadcopter};
+use tract_onnx::prelude::*;
+
+use quadcopter::dynamics_quadcopter::{QUAD_NUM_DIMS as NUM_DIMS, QuadcopterModel};
+use quadcopter::quadcopter_model::run_reachability_quadcopter;
+use quadcopter::controller::model_sample_action;
+use quadcopter::simulate_quadcopter::simulate_quadcopter;
+use quadcopter::utils::normalize_angle;
 use rtreach::util::{save_rects_to_csv, save_states_to_csv};
 use rtreach::geometry::println;
 
-const STATES_FILE_PATH: &str = "data/quadcopter/simple_exp_states.csv";
-const RECTS_FILE_PATH: &str = "data/quadcopter/simple_exp_rects.csv";
-fn main() {
+const STATES_FILE_PATH: &str = "data/quadcopter/simple_exp/gt_ctrl_states.csv";
+const RECTS_FC_FILE_PATH: &str = "data/quadcopter/simple_exp/rects_fc.csv";
+const RECTS_RLC_FILE_PATH: &str = "data/quadcopter/simple_exp/rects_rlc.csv";
+fn main() -> TractResult<()>{
+    let save_data = true;
     // Get the current working directory
     let current_dir = env::current_dir().expect("Failed to get current directory");
 
-    let runtime_ms: u64 = 100;
+    let states_path = current_dir.join(STATES_FILE_PATH);
+    let rects_fc_path = current_dir.join(RECTS_FC_FILE_PATH);
+    let rects_dc_path = current_dir.join(RECTS_RLC_FILE_PATH);
+    if save_data{
+        if let Some(parent) = states_path.parent() {
+            println!("Saving data to: {:?}", parent);
+            fs::create_dir_all(parent)?; // Creates parent directories if they don't exist
+        }
+    }
+
+    // Load the ONNX model from file
+    let model = tract_onnx::onnx()
+        .model_for_path("models/quadcopter_model_actor.onnx")?
+        // specify input type and shape
+        .with_input_fact(0, f64::fact([1, 12]).into())?
+        .into_optimized()?        // Optimize the model for performance
+        .into_runnable()?;         // Make it runnable
+
+    let runtime_ms: u64 = 10;
     let reach_time: f64 = 2.0;
-    let start_ms: u64 = 0;
-    let init_step_size: f64 = 0.2;
+    let init_step_size: f64 = 0.1;
+    let euler_step_size: f64 = 0.0002;
     let start_state: [f64; 12] = [0.0; 12];
-    let control_input: Vec<f64> = vec![0.0, 0.001, -0.001, 0.0];
+    let mut state = start_state.clone();
+    let goal = [1.0, 1.0, 0.0];
+    let mut ctrl_input;
     let fixed_step: bool = false;
-    let store_state: bool = true;
+
+    let step_size = 0.1;
+    let mut step = 0;
+    let total_steps = 20;
+
+    let mut quadcopter_model = QuadcopterModel::default();
+    quadcopter_model.set_ctrl_fn(model_sample_action);
+    quadcopter_model.set_goal(goal);
+    quadcopter_model.set_model(&model);
+
+    let mut states_vec: Vec<[f64; NUM_DIMS]> = Vec::new();
+
+    while step < total_steps {
+        ctrl_input = quadcopter_model.sample_state_action(&state).to_vec();
+        let mut next_state = simulate_quadcopter(&quadcopter_model, state, &ctrl_input, euler_step_size, step_size);
+        
+        next_state[3] = normalize_angle(next_state[3]); // phi
+        next_state[4] = normalize_angle(next_state[4]); // theta
+        next_state[5] = normalize_angle(next_state[5]); // psi
+        states_vec.push(next_state);
+        state = next_state;
+        step += 1;
+    }
+    if save_data{
+        save_states_to_csv(states_path.to_str().unwrap(), &states_vec);
+    }
+    println!("Final ground truth state: {:?}\n", state);
+
+    // sim time
+    let start_ms: u64 = 0;
+
+    // run reachability analysis test 
     let store_rects: bool = true;
+    ctrl_input = quadcopter_model.sample_state_action(&start_state).to_vec();
+    let (_, storage_rects_fc) = run_reachability_quadcopter(&quadcopter_model, 
+                                                                                       start_state, 
+                                                                                       reach_time,
+                                                                                       init_step_size, 
+                                                                                       runtime_ms, 
+                                                                                       start_ms, 
+                                                                                       &ctrl_input, 
+                                                                                       store_rects, 
+                                                                                       fixed_step,
+                                                                                    false);
 
-    println!("initial state: ");
-    for i in 0..12 {
-        println!("x[{}]: {}", i, start_state[i]);
+    let (_, storage_rects_dc) = run_reachability_quadcopter(&quadcopter_model, 
+                                                                                       start_state, 
+                                                                                       reach_time,
+                                                                                       init_step_size, 
+                                                                                       runtime_ms, 
+                                                                                       start_ms, 
+                                                                                       &ctrl_input, 
+                                                                                       store_rects, 
+                                                                                       fixed_step,
+                                                                                    true);
+    if save_data {
+        save_rects_to_csv(rects_fc_path.to_str().unwrap(), &storage_rects_fc);
+        save_rects_to_csv(rects_dc_path.to_str().unwrap(), &storage_rects_dc);
     }
-    println!();
+    println!("Final Hyperrectangle for Fixed Control: ");
+    println(&storage_rects_fc[storage_rects_fc.len()-2]);
 
-    let quad_model = QuadcopterModel::default();
-    let (_, storage_states) = get_simulated_safe_time(&quad_model, start_state, &control_input, store_state);
-    println!("Number of States: {}\n", storage_states.len());
-    // if store_state {
-    //     save_states_to_csv(current_dir.join(STATES_FILE_PATH).to_str().unwrap(), &storage_states);
-    // }
+    println!("Final Hyperrectangle for Dynamic RL Control: ");
+    println(&storage_rects_dc[storage_rects_dc.len()-2]);
 
-    println!("Running reachability analysis\n");
-    let (safe, storage_rects) = run_reachability_quadcopter(&quad_model, 
-                                                                                            start_state, 
-                                                                                            reach_time,
-                                                                                            init_step_size, 
-                                                                                            runtime_ms, 
-                                                                                            start_ms, 
-                                                                                            &control_input,
-                                                                                            store_rects, 
-                                                                                            fixed_step,
-                                                                                        false);
-    println!("Number of Rectangles: {}\n", storage_rects.len());
-    if store_rects {
-        println!("Last Rectangle (Reachtube): ");
-        println(&storage_rects[storage_rects.len()-1]);
-        // save_rects_to_csv(current_dir.join(RECTS_FILE_PATH).to_str().unwrap(), &storage_rects);
-    }
-    
 
-    let iters: u64 = *ITERATIONS_AT_QUIT.lock().unwrap();
-    println!("Number of Iterations: {}", iters);
-    println!("done, result = {}", if safe { "safe" } else { "unsafe" });
+
+    Ok(())
 }
