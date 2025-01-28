@@ -120,7 +120,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "bicycle_line_exp"
+name = "bicycle_corr_exp"
 version = "0.1.0"
 dependencies = [
  "bicycle",
@@ -131,7 +131,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "bicycle_path_exp"
+name = "bicycle_nbd_exp"
 version = "0.1.0"
 dependencies = [
  "bicycle",
@@ -1582,7 +1582,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "quadcopter_line_exp"
+name = "quadcopter_corr_exp"
 version = "0.1.0"
 dependencies = [
  "csv",
@@ -1593,7 +1593,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "quadcopter_path_exp"
+name = "quadcopter_nbd_exp"
 version = "0.1.0"
 dependencies = [
  "csv",

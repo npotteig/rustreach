@@ -7,9 +7,9 @@ members = [
     "exps/bicycle_simple_ctrl", 
     "exps/quadcopter_simple_exp", 
     "exps/quadcopter_simple_ctrl", 
-    "exps/bicycle_line_exp", 
-    "exps/quadcopter_line_exp", 
-    "exps/bicycle_path_exp", 
-    "exps/quadcopter_path_exp", 
+    "exps/bicycle_corr_exp", 
+    "exps/quadcopter_corr_exp", 
+    "exps/bicycle_nbd_exp", 
+    "exps/quadcopter_nbd_exp", 
 ]
 

@@ -13,29 +13,64 @@ use bicycle::dynamics_bicycle::{BicycleModel, BICYCLE_NUM_DIMS as NUM_DIMS};
 use bicycle::utils::{distance, normalize_angle};
 use bicycle::controller::{select_safe_subgoal_rtreach, select_safe_subgoal_circle, model_sample_action};
 
-const LINE_DATASET_PATH: &str = "eval_input_data/bicycle/line_dataset.csv";
-const EVAL_OUTPUT_PATH: &str = "eval_output_data/bicycle/line_exp/line_eval_output.csv";
+const CORR_DATASET_PATH: &str = "eval_input_data/bicycle/corr_dataset.csv";
+const EVAL_OUTPUT_PARENT: &str = "eval_output_data/bicycle/corr_exp/";
 
 fn main() -> TractResult<()> {
-    let save_data = false;
+    let args: Vec<String> = env::args().collect();
+
+    // Print all the arguments
+    println!("Arguments: {:?}", args);
+
+    // Access specific arguments
+    let save_data: i32;
+    let algorithm: &str;
+    if args.len() == 3 {
+        algorithm = &args[1];
+        save_data = args[2].parse().expect("Second argument must be an integer");
+        println!("Algorithm: {}", algorithm);
+        println!("Save Data: {}", save_data);
+    }
+    else {
+        eprintln!("Error: Not enough arguments provided.");
+        eprintln!("Usage: {} <algorithm> <save_data>", args[0]);
+        std::process::exit(1); // Exit with a non-zero status code
+    }
+
+    // Set algorithm parameters
+    // [learning_enabled, use_subgoal_ctrl, use_rtreach, use_rtreach_dynamic_control]
+    let algorithm_parameters: Vec<bool> ;
+    if algorithm == "wo"{
+        algorithm_parameters = vec![true, false, false, false];
+    }
+    else if algorithm == "rrfc"{
+        algorithm_parameters = vec![true, true, true, false];
+    }
+    else if algorithm == "rrrlc"{
+        algorithm_parameters = vec![true, true, true, true];
+    }
+    else{
+        eprintln!("Error: Invalid algorithm provided.");
+        eprintln!("Algorithm must be one of the following: wo, rrfc, rrrlc");
+        std::process::exit(1); // Exit with a non-zero status code
+    }
 
     // Get the current working directory
     let current_dir = env::current_dir().expect("Failed to get current directory");
 
-    let line_dataset_path = current_dir.join(LINE_DATASET_PATH);
-    let eval_output_path = current_dir.join(EVAL_OUTPUT_PATH);
+    let corr_dataset_path = current_dir.join(CORR_DATASET_PATH);
+    let eval_output_parent = current_dir.join(EVAL_OUTPUT_PARENT);
+    let eval_output_path = eval_output_parent.join(format!("{}_corr_exp.csv", algorithm));
 
-    if save_data{
-        if let Some(parent) = eval_output_path.parent() {
-            println!("Saving data to: {:?}", parent);
-            fs::create_dir_all(parent)?; // Creates parent directories if they don't exist
-        }
+    if save_data == 1 {
+        print!("Saving data to: {}", eval_output_path.to_str().unwrap());
+        fs::create_dir_all(eval_output_parent)?; // Creates parent directories if they don't exist
     }
 
     // Create a CSV reader
     let mut rdr = ReaderBuilder::new()
         .has_headers(true)  // Set to false if there are no headers in your CSV
-        .from_path(line_dataset_path)?;
+        .from_path(corr_dataset_path)?;
 
     // Load the ONNX model from file
     let model = tract_onnx::onnx()
@@ -60,10 +95,10 @@ fn main() -> TractResult<()> {
     let thresh = 0.2;
 
     // Control Parameters
-    let learning_enabled = true;
-    let use_subgoal_ctrl = true;
-    let use_rtreach = true;
-    let use_rtreach_dynamic_control = true;
+    let learning_enabled = algorithm_parameters[0];
+    let use_subgoal_ctrl = algorithm_parameters[1];
+    let use_rtreach = algorithm_parameters[2];
+    let use_rtreach_dynamic_control = algorithm_parameters[3];
     let pi_low = model_sample_action;
     let sim_time = 2.0;
     let wall_time_ms = 100;
@@ -199,7 +234,7 @@ fn main() -> TractResult<()> {
     println!("Max subgoal computation time: {}us", max_subgoal_time);
     println!("Total deadline violations: {}", total_deadline_violations);
 
-    if save_data{
+    if save_data == 1{
         let mut wtr = csv::Writer::from_path(eval_output_path)?;
         wtr.write_record(&["TTG", "Collision", "No Subgoal", "Avg Subgoal Compute Time", "Max Subgoal Compute Time", "Deadline Violations"])?;
         for i in 0..time_vec.len() {

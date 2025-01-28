@@ -1,5 +1,5 @@
 [package]
-name = "quadcopter_path_exp"
+name = "quadcopter_corr_exp"
 version = "0.1.0"
 edition = "2021"
 

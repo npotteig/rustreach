@@ -16,8 +16,64 @@ We include four experiments discussed below. The experiments source code can be 
 
 1. Taylor T. Johnson, Stanley Bak, Marco Caccamo, and Lui Sha. 2016. Real-Time Reachability for Verified Simplex Design. ACM Trans. Embed. Comput. Syst. 15, 2, Article 26 (May 2016), 27 pages. https://doi.org/10.1145/2723871
 
+## Paper Experiments
 
-## Simple Experiment (Compare Fixed and Dynamic (RL-based) control)
+The general running scheme is
+
+```
+cargo run --release -p <exp_name> -- <args>
+```
+
+### Vehicles
+* Bicyle Model for an autonomous car
+* Quadcopter Model for a UAV
+
+### Algorithms
+* Waypoint Only (WO) - RL controller is conditioned only on next waypoint.
+* RusTReach Fixed Control (RRFC) - RL controller is conditioned on intermediate subgoals. Subgoals selected based on if its reachability assuming fixed control over a finite-time horizon does not intersect with obstacles.
+* RusTReach RL Control (Ours) (RRRLC) - RL controller is conditioned on intermediate subgoals. Subgoals selected based on if its reachability using predicted RL control over a finite-time horizon does not intersect with obstacles.
+
+### Corridor
+![Corridor Map](figs/paper/corridor_map.jpg)
+
+A narrow passagway where the system must navigate from the left to the right side without intersecting with obstacles.
+
+```
+<exp_name: ["bicycle_corr_exp", "quadcopter_corr_exp"]>
+```
+
+```
+<args>: <algorithm: ["wo", "rrfc", "rrrlc"]> <save_output_data: ["0", "1"]>
+```
+
+Example run for bicycle model using WO algorithm that does not save output data:
+```shell
+cargo run --release -p bicycle_corr_exp -- wo 0
+```
+
+### Neighborhood
+
+![Neighborhood Map](figs/paper/nbd_map.jpg)
+
+A two-dimensional grid map from a neighborhood in Microsoft AirSim Flight Simulator. The objective is to maneuver between a given set of waypoints to a final goal without collision. The waypoints are pre-computed using either $A^*$ or RRT and stored as paths in `eval_input_data`.
+
+```
+<exp_name: ["bicycle_nbd_exp", "quadcopter_nbd_exp"]>
+```
+
+```
+<args>: <algorithm: ["wo", "rrfc", "rrrlc"]> <waypt_algorithm: ["astar", "rrt"]> <save_output_data: ["0", "1"]>
+```
+
+Example run for bicycle model using WO algorithm that does not save output data:
+```shell
+cargo run --release -p bicycle_nbd_exp -- wo 0
+```
+
+## Extra experiments
+
+
+### Simple Experiment (Compare Fixed and Dynamic (RL-based) control)
 
 Test the performance in tracking a system controlled by a goal-conditioned RL policy over a finite-time horizon (2.0 seconds) towards a fixed goal ([1, 1]). Compare fixed control and dynamic control in RusTReach.
 
@@ -26,7 +82,7 @@ cargo run --release -p bicycle_simple_exp
 cargo run --release -p quadcopter_simple_exp
 ```
 
-## Parameters and Simple Control (Sandbox Mode)
+### Parameters and Simple Control (Sandbox Mode)
 Play around with your own settings and initial states in the Corridor Environment. Important settings are found in the `main.rs` file under `Simulation Parameters` and `Control Parameters`.
 
 ```
@@ -52,26 +108,4 @@ By default our approach is used by setting `learning_enabled, use_subgoal_ctrl, 
 ```
 cargo run --release -p bicycle_simple_ctrl
 cargo run --release -p quadcopter_simple_ctrl
-```
-
-## Line Experiment (Corridor)
-
-![Corridor Map](figs/paper/corridor_map.jpg)
-
-A narrow passagway where the system must navigate from the left to the right side without intersecting with obstacles.
-
-```
-cargo run --release -p bicycle_line_exp
-cargo run --release -p quadcopter_line_exp
-```
-
-## Path Experiment (Neighborhood)
-
-![Neighborhood Map](figs/paper/nbd_map.jpg)
-
-A two-dimensional grid map from a neighborhood in Microsoft AirSim Flight Simulator. The objective is to maneuver between a given set of waypoints to a final goal without collision.
-
-```
-cargo run --release -p bicycle_path_exp
-cargo run --release -p quadcopter_path_exp
 ```

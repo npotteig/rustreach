@@ -7,31 +7,75 @@ use tract_onnx::prelude::*;
 use rtreach::obstacle_safety::load_obstacles_from_csv;
 use rtreach::util::load_paths_from_csv;
 
-use quadcopter::simulate_quadcopter::simulate_quadcopter;
-use quadcopter::quadcopter_model::has_collided;
-use quadcopter::dynamics_quadcopter::{QuadcopterModel, QUAD_NUM_DIMS as NUM_DIMS};
-use quadcopter::utils::{distance, normalize_angle};
-use quadcopter::controller::{select_safe_subgoal_rtreach, select_safe_subgoal_circle, model_sample_action};
+use bicycle::simulate_bicycle::step_bicycle;
+use bicycle::bicycle_model::has_collided;
+use bicycle::dynamics_bicycle::{BicycleModel, BICYCLE_NUM_DIMS as NUM_DIMS};
+use bicycle::utils::{distance, normalize_angle};
+use bicycle::controller::{select_safe_subgoal_rtreach, select_safe_subgoal_circle, model_sample_action};
 
-const PATH_DATASET_PATH: &str = "eval_input_data/rustreach_paths.csv";
+const PATH_DATASET_PARENT: &str = "eval_input_data/";
 const OBSTACLE_DATASET_PATH: &str = "eval_input_data/rr_nbd_obstacles.csv";
-const EVAL_OUTPUT_PATH: &str = "eval_output_data/quadcopter/path_exp/path_eval_output.csv";
+const EVAL_OUTPUT_PARENT: &str = "eval_output_data/bicycle/nbd_exp/";
 
 fn main() -> TractResult<()> {
-    let save_data = false;
+    let args: Vec<String> = env::args().collect();
+    
+    // Print all the arguments
+    println!("Arguments: {:?}", args);
+
+    // Access specific arguments
+    let save_data: i32;
+    let algorithm: &str;
+    let waypt_algorithm: &str;
+    if args.len() == 4 {
+        algorithm = &args[1];
+        if args[2] != "astar" && args[2] != "rrt" {
+            eprintln!("Error: Invalid waypoint algorithm provided.");
+            eprintln!("Waypoint algorithm must be one of the following: astar, rrt");
+            std::process::exit(1); // Exit with a non-zero status code
+        }
+        waypt_algorithm = &args[2];
+        save_data = args[3].parse().expect("Second argument must be an integer");
+        println!("Algorithm: {}", algorithm);
+        println!("Waypoint Algorithm: {}", waypt_algorithm);
+        println!("Save Data: {}", save_data);
+    }
+    else {
+        eprintln!("Error: Not enough arguments provided.");
+        eprintln!("Usage: {} <algorithm> <waypt_algorithm> <save_data>", args[0]);
+        std::process::exit(1); // Exit with a non-zero status code
+    }
+
+    // Set algorithm parameters
+    // [learning_enabled, use_subgoal_ctrl, use_rtreach, use_rtreach_dynamic_control]
+    let algorithm_parameters: Vec<bool> ;
+    if algorithm == "wo"{
+        algorithm_parameters = vec![true, false, false, false];
+    }
+    else if algorithm == "rrfc"{
+        algorithm_parameters = vec![true, true, true, false];
+    }
+    else if algorithm == "rrrlc"{
+        algorithm_parameters = vec![true, true, true, true];
+    }
+    else{
+        eprintln!("Error: Invalid algorithm provided.");
+        eprintln!("Algorithm must be one of the following: wo, rrfc, rrrlc");
+        std::process::exit(1); // Exit with a non-zero status code
+    }
 
     // Get the current working directory
     let current_dir: std::path::PathBuf = env::current_dir().expect("Failed to get current directory");
-
-    let path_dataset_path = current_dir.join(PATH_DATASET_PATH);
+    
+    let path_dataset_parent = current_dir.join(PATH_DATASET_PARENT);
+    let path_dataset_path = path_dataset_parent.join(format!("{}_rustreach_paths.csv", waypt_algorithm));
     let obstacle_dataset_path = current_dir.join(OBSTACLE_DATASET_PATH);
-    let eval_output_path = current_dir.join(EVAL_OUTPUT_PATH);
+    let eval_output_parent = current_dir.join(EVAL_OUTPUT_PARENT);
+    let eval_output_path = eval_output_parent.join(format!("{}_nbd_exp.csv", algorithm));
 
-    if save_data{
-        if let Some(parent) = eval_output_path.parent() {
-            println!("Saving data to: {:?}", parent);
-            fs::create_dir_all(parent)?; // Creates parent directories if they don't exist
-        }
+    if save_data == 1 {
+        print!("Saving data to: {}", eval_output_path.to_str().unwrap());
+        fs::create_dir_all(eval_output_parent)?; // Creates parent directories if they don't exist
     }
 
     let paths_vec = load_paths_from_csv(&path_dataset_path);
@@ -39,28 +83,27 @@ fn main() -> TractResult<()> {
 
     // Load the ONNX model from file
     let model = tract_onnx::onnx()
-        .model_for_path("models/quadcopter_model_actor.onnx")?
+        .model_for_path("models/bicycle_model_actor.onnx")?
         // specify input type and shape
-        .with_input_fact(0, f64::fact([1, 12]).into())?
+        .with_input_fact(0, f64::fact([1, 4]).into())?
         .into_optimized()?        // Optimize the model for performance
         .into_runnable()?;         // Make it runnable
 
-    let mut quadcopter_model = QuadcopterModel::default();
+    let mut bicycle_model = BicycleModel::default();
 
     // Start & Goal States
     let start_state = [0.0; NUM_DIMS];
 
     // Simulation Parameters
     let step_size = 0.1;  // seconds
-    let euler_step_size = 0.0002;
     let total_steps = 1000;
     let thresh = 1.0;
 
     // Control Parameters
-    let learning_enabled = true;
-    let use_subgoal_ctrl = true;
-    let use_rtreach = true;
-    let use_rtreach_dynamic_control = true;
+    let learning_enabled = algorithm_parameters[0];
+    let use_subgoal_ctrl = algorithm_parameters[1];
+    let use_rtreach = algorithm_parameters[2];
+    let use_rtreach_dynamic_control = algorithm_parameters[3];
     let pi_low = model_sample_action;
     let sim_time = 2.0;
     let wall_time_ms = 100;
@@ -69,9 +112,9 @@ fn main() -> TractResult<()> {
     let fixed_step = false;
     let num_subgoal_cands = 10;
 
-    quadcopter_model.set_ctrl_fn(pi_low);
+    bicycle_model.set_ctrl_fn(pi_low);
     if learning_enabled {
-        quadcopter_model.set_model(&model);
+        bicycle_model.set_model(&model);
     }
 
     let mut index = 0;
@@ -88,26 +131,25 @@ fn main() -> TractResult<()> {
         let mut state = start_state.clone();
         state[0] = pth[0][0];
         state[1] = pth[0][1];
-        state[2] = 0.0;
         let mut time = 0.0;
         let mut step = 0;
         let mut collision = false;
         let mut no_subgoal = false;
         let mut goal_idx = 1;
-        let mut prev_goal_waypoint = [pth[0][0], pth[0][1], 0.0];
-        let mut cur_goal_waypoint = [pth[goal_idx][0], pth[goal_idx][1], 0.0];
-        let final_goal_waypoint = [pth[pth.len()-1][0], pth[pth.len()-1][1], 0.0];
+        let mut prev_goal_waypoint = [pth[0][0], pth[0][1]];
+        let mut cur_goal_waypoint = [pth[goal_idx][0], pth[goal_idx][1]];
+        let final_goal_waypoint = [pth[pth.len()-1][0], pth[pth.len()-1][1]];
         let mut subgoal_compute_time = vec![];
         let mut deadline_violation_count = 0.0;
 
-        quadcopter_model.set_goal(cur_goal_waypoint);
+        bicycle_model.set_goal(cur_goal_waypoint);
 
         while !collision && !no_subgoal && step < total_steps && distance(&state, &final_goal_waypoint) > thresh {
             if cur_goal_waypoint != final_goal_waypoint && distance(&state, &cur_goal_waypoint) < thresh{
                 goal_idx += 1;
                 prev_goal_waypoint = cur_goal_waypoint.clone();
-                cur_goal_waypoint = [pth[goal_idx][0], pth[goal_idx][1], 0.0];
-                quadcopter_model.set_goal(cur_goal_waypoint);
+                cur_goal_waypoint = [pth[goal_idx][0], pth[goal_idx][1]];
+                bicycle_model.set_goal(cur_goal_waypoint);
             }
 
             let ctrl_input;
@@ -115,7 +157,7 @@ fn main() -> TractResult<()> {
                 let start_time = Instant::now();
                 let (safe, subgoal, _) = 
                 if use_rtreach {
-                    select_safe_subgoal_rtreach(&mut quadcopter_model, state, prev_goal_waypoint, cur_goal_waypoint, num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control, true)
+                    select_safe_subgoal_rtreach(&mut bicycle_model, state, prev_goal_waypoint, cur_goal_waypoint, num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control, true)
                 }
                 else{
                     select_safe_subgoal_circle(&state, prev_goal_waypoint, cur_goal_waypoint, num_subgoal_cands*10, true)
@@ -130,14 +172,14 @@ fn main() -> TractResult<()> {
                 if !safe {
                     no_subgoal = true;
                 }
-                quadcopter_model.set_goal(subgoal);
-                ctrl_input = quadcopter_model.sample_state_action(&state).to_vec();
+                bicycle_model.set_goal(subgoal);
+                ctrl_input = bicycle_model.sample_state_action(&state);
             }
             else {
-                ctrl_input = quadcopter_model.sample_state_action(&state).to_vec();
+                ctrl_input = bicycle_model.sample_state_action(&state);
             }
     
-            let mut next_state = simulate_quadcopter(&quadcopter_model, state, &ctrl_input, euler_step_size, step_size);
+            let mut next_state = step_bicycle(&bicycle_model, &state, ctrl_input[0], ctrl_input[1], step_size);
             
             next_state[3] = normalize_angle(next_state[3]);
             time += step_size;
@@ -205,7 +247,7 @@ fn main() -> TractResult<()> {
     println!("Max subgoal computation time: {}us", max_subgoal_time);
     println!("Total deadline violations: {}", total_deadline_violations);
 
-    if save_data{
+    if save_data == 1{
         let mut wtr = csv::Writer::from_path(eval_output_path)?;
         wtr.write_record(&["TTG", "Collision", "No Subgoal", "Avg Subgoal Compute Time", "Max Subgoal Compute Time", "Deadline Violations"])?;
         for i in 0..time_vec.len() {

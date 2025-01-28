@@ -1,5 +1,5 @@
 [package]
-name = "quadcopter_line_exp"
+name = "quadcopter_nbd_exp"
 version = "0.1.0"
 edition = "2021"
 
