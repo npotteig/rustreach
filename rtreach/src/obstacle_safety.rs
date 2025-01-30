@@ -1,4 +1,3 @@
-use core::alloc;
 use std::sync::Mutex;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
@@ -88,33 +87,25 @@ pub fn check_safety<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>, cone
     false
 }
 
-pub fn check_safety_obstacles<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>) -> bool {
+pub fn check_safety_obstacles<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>, obst: &Vec<Vec<Vec<f64>>>) -> bool {
     let mut allowed: bool = true;
 
     let obstacle_count: u32 = *OBSTACLE_COUNT.lock().unwrap();
-    let obstacles: &Option<Vec<Vec<Vec<f64>>>> = &*OBSTACLES.lock().unwrap();
 
-    match obstacles {
-        Some(obst) => {
-            for j in 0..obstacle_count {
-                let obs: [[f64; 2]; 2] = [
-                    [obst[j as usize][0][0], obst[j as usize][0][1]],
-                    [obst[j as usize][1][0], obst[j as usize][1][1]]
-                ];
-                
-                allowed = check_safety(rect, &obs);
-                if !allowed {
-                    if DEBUG{
-                        println!("offending cone [{}, {}], [{}, {}]",
-                        obst[j as usize][0][0], obst[j as usize][0][1],
-                        obst[j as usize][1][0], obst[j as usize][1][1]);
-                    }
-                    break;
-                }
+    for j in 0..obstacle_count {
+        let obs: [[f64; 2]; 2] = [
+            [obst[j as usize][0][0], obst[j as usize][0][1]],
+            [obst[j as usize][1][0], obst[j as usize][1][1]]
+        ];
+        
+        allowed = check_safety(rect, &obs);
+        if !allowed {
+            if DEBUG{
+                println!("offending cone [{}, {}], [{}, {}]",
+                obst[j as usize][0][0], obst[j as usize][0][1],
+                obst[j as usize][1][0], obst[j as usize][1][1]);
             }
-        },
-        None => {
-            allowed = true;
+            break;
         }
     }
     

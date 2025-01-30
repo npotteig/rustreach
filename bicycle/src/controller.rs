@@ -72,7 +72,7 @@ pub fn select_safe_subgoal_circle(
     goal: [f64; 2],
     num_subgoal_cands: u32,
     sliding_window: bool,
-)-> (bool, [f64; 2], Vec<HyperRectangle<NUM_DIMS>>){
+)-> (bool, [f64; 2], Vec<(f64, HyperRectangle<NUM_DIMS>)>){
     // let robot_rad = (0.25f64.powf(2.0) + 0.15f64.powf(2.0)).sqrt();
     let robot_rad = 0.1;
     let mut subgoals = 
@@ -93,7 +93,7 @@ pub fn select_safe_subgoal_circle(
             ],
         };
         if check_safety_obstacles_circumscribe(subgoal, robot_rad, rad_des){
-            return (true, *subgoal, vec![subgoal_rect]);
+            return (true, *subgoal, vec![(0.0, subgoal_rect)]);
         }
     }
     (false, [0.0, 0.0], Vec::new())
@@ -114,7 +114,8 @@ pub fn select_safe_subgoal_rtreach(
     fixed_step: bool,
     rtreach_dynamic_control: bool,
     sliding_window: bool,
-) -> (bool, [f64; 2], Vec<HyperRectangle<NUM_DIMS>>) {
+    obstacle_sim_fn: fn(t: f64, obs: &mut Vec<Vec<Vec<f64>>>),
+) -> (bool, [f64; 2], Vec<(f64, HyperRectangle<NUM_DIMS>)>) {
     let mut subgoals = 
     if sliding_window{
         generate_linear_subgoals_sliding(&start, &goal, &[state[0], state[1]], num_subgoal_cands, 1.0, 5.0)
@@ -129,7 +130,7 @@ pub fn select_safe_subgoal_rtreach(
         let ctrl_input = system_model.sample_state_action(&state);
         control_inputs.push(ctrl_input);
     }
-    let (safe, idx, storage_vec) = select_safe_control(system_model, state, sim_time, init_step_size, wall_time_ms, start_ms, &subgoals, &control_inputs, store_rect, fixed_step, rtreach_dynamic_control);
+    let (safe, idx, storage_vec) = select_safe_control(system_model, state, sim_time, init_step_size, wall_time_ms, start_ms, &subgoals, &control_inputs, store_rect, fixed_step, rtreach_dynamic_control, obstacle_sim_fn);
     if safe {
         return (true, subgoals[idx], storage_vec);
     }
@@ -151,7 +152,8 @@ fn select_safe_control(
     store_rect: bool,
     fixed_step: bool,
     rtreach_dynamic_control: bool,
-) -> (bool, usize, Vec<HyperRectangle<NUM_DIMS>>) {
+    obstacle_sim_fn: fn(t: f64, obs: &mut Vec<Vec<Vec<f64>>>),
+) -> (bool, usize, Vec<(f64, HyperRectangle<NUM_DIMS>)>) {
     let wall_time_per_input = wall_time_ms / control_inputs.len() as u64;
     for (idx, control_input) in control_inputs.iter().enumerate() {
         system_model.set_goal(subgoals[idx]);
@@ -165,7 +167,8 @@ fn select_safe_control(
                                                                                         control_input[1], 
                                                                                         store_rect, 
                                                                                         fixed_step,
-                                                                                        rtreach_dynamic_control);
+                                                                                        rtreach_dynamic_control,
+                                                                                        obstacle_sim_fn);
         if safe {
             return (true, idx, storage_vec);
         }

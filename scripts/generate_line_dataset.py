@@ -57,7 +57,7 @@ if __name__ == '__main__':
     else: 
         save_path = 'eval_input_data/quadcopter/corr_dataset.csv'
     
-    obstacles = [[2.,0.7], [2., 1.4], [2., 1.9], [2., 2.4], [2., -0.7], [2., -1.4], [2., -1.9], [2., -2.4]]
+    obstacles = [[2.,0.7], [2., -0.7]]
     width = 0.5
     
     start_bounds = [[-0.5, 0.5], [-0.5, 0.5]]

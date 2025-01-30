@@ -17,9 +17,10 @@ pub struct LiftingSettings<const NUM_DIMS: usize> {
     pub initial_step_size: f64,              // the initial size of the steps to use
     pub max_rect_width_before_error: f64,    // maximum allowed rectangle size
     pub max_runtime_milliseconds: u64,       // maximum runtime in milliseconds
-    pub reached_at_intermediate_time: Option<fn(&mut HyperRectangle<NUM_DIMS>, store_rect: bool, storage_vec: &mut Vec<HyperRectangle<NUM_DIMS>>) -> bool>, // callback for intermediate time
-    pub reached_at_final_time: Option<fn(&mut HyperRectangle<NUM_DIMS>, store_rect: bool, storage_vec: &mut Vec<HyperRectangle<NUM_DIMS>>) -> bool>,        // callback for final time
-    pub restarted_computation: Option<fn(store_rect: bool, storage_vec: &mut Vec<HyperRectangle<NUM_DIMS>>)>,         // callback for restarted computation
+    pub obstacle_sim_fn: fn(t: f64, obs: &mut Vec<Vec<Vec<f64>>>), // obstacle simulation function
+    pub reached_at_intermediate_time: Option<fn(&mut HyperRectangle<NUM_DIMS>, time: f64, obstacle_sim_fn: fn(t: f64, obs: &mut Vec<Vec<Vec<f64>>>), store_rect: bool, storage_vec: &mut Vec<(f64, HyperRectangle<NUM_DIMS>)>) -> bool>, // callback for intermediate time
+    pub reached_at_final_time: Option<fn(&mut HyperRectangle<NUM_DIMS>, time: f64, obstacle_sim_fn: fn(t: f64, obs: &mut Vec<Vec<Vec<f64>>>), store_rect: bool, storage_vec: &mut Vec<(f64, HyperRectangle<NUM_DIMS>)>) -> bool>,        // callback for final time
+    pub restarted_computation: Option<fn(store_rect: bool, storage_vec: &mut Vec<(f64, HyperRectangle<NUM_DIMS>)>)>,         // callback for restarted computation
 }
 
 // Constants necessary to guarantee loop termination.
@@ -206,7 +207,7 @@ pub fn face_lifting_iterative_improvement<const NUM_DIMS: usize, T: SystemModel<
     settings: &mut LiftingSettings<NUM_DIMS>,
     initial_ctrl_input: &Vec<f64>,
     store_rect: bool,
-    storage_vec: &mut Vec<HyperRectangle<NUM_DIMS>>,
+    storage_vec: &mut Vec<(f64, HyperRectangle<NUM_DIMS>)>,
     fixed_step: bool,
     dynamic_control: bool,
 ) -> bool {
@@ -283,13 +284,21 @@ pub fn face_lifting_iterative_improvement<const NUM_DIMS: usize, T: SystemModel<
                 hyperrectangle_grow_to_convex_hull(&mut total_hull, &tracked_rect);
                 
                 // println!("safe1: {}", safe);
-                safe = safe && reached_at_intermediate_time(&mut hull, store_rect, storage_vec);
+                let mut int_t = settings.reach_time - time_remaining - time_elapsed;
+                if int_t < 0.0 {
+                    int_t = 0.0;
+                }
+                safe = safe && reached_at_intermediate_time(&mut hull, int_t, settings.obstacle_sim_fn, store_rect, storage_vec);
                 // println!("safe2: {}", safe);
             }
 
             if time_elapsed == time_remaining{
                 if let Some(reached_at_final_time) = settings.reached_at_final_time {
-                    safe = safe && reached_at_final_time(&mut tracked_rect, store_rect, storage_vec);
+                    let mut f_t = settings.reach_time - time_remaining - time_elapsed;
+                    if f_t < 0.0 {
+                        f_t = 0.0;
+                    }
+                    safe = safe && reached_at_final_time(&mut tracked_rect, f_t, settings.obstacle_sim_fn, store_rect, storage_vec);
                 }
             }
 
@@ -331,7 +340,8 @@ pub fn face_lifting_iterative_improvement<const NUM_DIMS: usize, T: SystemModel<
                 }
 
                 if let Some(reached_at_final_time) = settings.reached_at_final_time {
-                    reached_at_final_time(&mut total_hull, store_rect, storage_vec);
+                    let f_t = settings.reach_time - time_remaining;
+                    reached_at_final_time(&mut total_hull, f_t, settings.obstacle_sim_fn, store_rect, storage_vec);
                 }
                 if iter > 1 {
                     rv = last_iteration_safe;
@@ -342,7 +352,8 @@ pub fn face_lifting_iterative_improvement<const NUM_DIMS: usize, T: SystemModel<
             }
             if !safe{
                 if let Some(reached_at_final_time) = settings.reached_at_final_time {
-                    reached_at_final_time(&mut total_hull, store_rect, storage_vec);
+                    let f_t = settings.reach_time - time_remaining;
+                    reached_at_final_time(&mut total_hull, f_t, settings.obstacle_sim_fn, store_rect, storage_vec);
                 }
             }
         } else {

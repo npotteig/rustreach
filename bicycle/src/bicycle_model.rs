@@ -1,11 +1,13 @@
 use super::dynamics_bicycle::{BicycleModel, BICYCLE_NUM_DIMS as NUM_DIMS};
 use super::simulate_bicycle::simulate_bicycle;
 use rtreach::geometry::HyperRectangle;
-use rtreach::obstacle_safety::{check_safety_obstacles, check_safety_wall};
+use rtreach::obstacle_safety::{check_safety_obstacles, check_safety_wall, OBSTACLES};
 use rtreach::face_lift::{LiftingSettings, face_lifting_iterative_improvement};
 // a note from the f1tenth simulator 
 // the car is 0.5 m long in the x direction 
 // 0.3 long in the y direction
+
+pub const OBSTACLE_SPEED: f64 = 0.5; // m/s
 
 // function that stops simulation after two seconds
 pub fn should_stop(state: [f64; NUM_DIMS], sim_time: f64, stop_time: &mut f64) -> bool {
@@ -30,9 +32,9 @@ pub fn get_simulated_safe_time(system_model: &BicycleModel, start: [f64; NUM_DIM
 }
 
 // called on states reached during the computation
-pub fn intermediate_state(r: &mut HyperRectangle<NUM_DIMS>, store_rect: bool, storage_vec: &mut Vec<HyperRectangle<NUM_DIMS>>) -> bool {
+pub fn intermediate_state(r: &mut HyperRectangle<NUM_DIMS>, time: f64, obstacle_sim_fn: fn(t: f64, obs: &mut Vec<Vec<Vec<f64>>>), store_rect: bool, storage_vec: &mut Vec<(f64, HyperRectangle<NUM_DIMS>)>) -> bool {
     if store_rect {
-        storage_vec.push(*r);
+        storage_vec.push((time, *r));
     }
     
     let mut allowed = true;
@@ -44,7 +46,35 @@ pub fn intermediate_state(r: &mut HyperRectangle<NUM_DIMS>, store_rect: bool, st
     r.dims[1].min = r.dims[1].min - 0.15;
     r.dims[1].max = r.dims[1].max + 0.15;
 
-    allowed = check_safety_obstacles(r);
+    let obstacles: &Option<Vec<Vec<Vec<f64>>>> = &*OBSTACLES.lock().unwrap();
+    match obstacles {
+        Some(obst) => {
+            let mut obst_clone = obst.clone();
+            obstacle_sim_fn(time, &mut obst_clone);
+            // let offset = OBSTACLE_SPEED * time;
+            // obst_clone[0][1][0] -= offset;
+            // if obst_clone[0][1][0] < -0.95 {
+            //     obst_clone[0][1][0] = -0.95;
+            // }
+            // obst_clone[0][1][1] -= offset;
+            // if obst_clone[0][1][1] < -0.45 {
+            //     obst_clone[0][1][1] = -0.45;
+            // }
+            // obst_clone[1][1][0] += offset;
+            // if obst_clone[1][1][0] > 0.45 {
+            //     obst_clone[1][1][0] = 0.45;
+            // }
+            // obst_clone[1][1][1] += offset;
+            // if obst_clone[1][1][1] > 0.95 {
+            //     obst_clone[1][1][1] = 0.95;
+            // }
+            
+            allowed = check_safety_obstacles(r, &obst_clone);
+        },
+        None => {
+            allowed = true;
+        }
+    }
 
     if allowed {
         allowed = check_safety_wall(r);
@@ -66,12 +96,12 @@ pub fn intermediate_state(r: &mut HyperRectangle<NUM_DIMS>, store_rect: bool, st
 
 // This function enumerates all of the corners of the current HyperRectangle and 
 // returns whether or not any of the points lies outside of the ellipsoid
-pub fn final_state(r: &mut HyperRectangle<NUM_DIMS>, store_rect: bool, storage_vec: &mut Vec<HyperRectangle<NUM_DIMS>>) -> bool {
-    intermediate_state(r, store_rect, storage_vec)
+pub fn final_state(r: &mut HyperRectangle<NUM_DIMS>, time: f64, obstacle_sim_fn: fn(t: f64, obs: &mut Vec<Vec<Vec<f64>>>), store_rect: bool, storage_vec: &mut Vec<(f64, HyperRectangle<NUM_DIMS>)>) -> bool {
+    intermediate_state(r, time, obstacle_sim_fn, store_rect, storage_vec)
 }
 
 // Clear all but the first rectangle (initial state) in the storage vector
-pub fn restarted_computation(_: bool, storage_vec: &mut Vec<HyperRectangle<NUM_DIMS>>) {
+pub fn restarted_computation(_: bool, storage_vec: &mut Vec<(f64, HyperRectangle<NUM_DIMS>)>) {
     storage_vec.truncate(1);
 }
 
@@ -87,7 +117,16 @@ pub fn has_collided(state: &[f64; NUM_DIMS]) -> bool {
     r.dims[1].min = r.dims[1].min - 0.15;
     r.dims[1].max = r.dims[1].max + 0.15;
 
-    let mut allowed = check_safety_obstacles(&r);
+    let mut allowed: bool;
+    let obstacles: &Option<Vec<Vec<Vec<f64>>>> = &*OBSTACLES.lock().unwrap();
+    match obstacles {
+        Some(obst) => {
+            allowed = check_safety_obstacles(&r, obst);
+        },
+        None => {
+            allowed = true;
+        }
+    }
 
     if allowed {
         allowed = check_safety_wall(&r);
@@ -110,13 +149,15 @@ pub fn run_reachability_bicycle(system_model: &BicycleModel,
                                 throttle: f64, 
                                 store_rect: bool,
                                 fixed_step: bool,
-                                dynamic_control: bool) -> (bool, Vec<HyperRectangle<NUM_DIMS>>) {
+                                dynamic_control: bool,
+                                obstacle_sim_fn: fn(t: f64, obs: &mut Vec<Vec<Vec<f64>>>)) -> (bool, Vec<(f64, HyperRectangle<NUM_DIMS>)>) {
     let mut set: LiftingSettings<NUM_DIMS> = LiftingSettings::<NUM_DIMS> {
         init: HyperRectangle::default(),
         reach_time: sim_time,
         initial_step_size: init_step_size,
         max_rect_width_before_error: 100.0,
         max_runtime_milliseconds: wall_time_ms,
+        obstacle_sim_fn: obstacle_sim_fn,
         reached_at_intermediate_time: Some(intermediate_state),
         reached_at_final_time: Some(final_state),
         restarted_computation: Some(restarted_computation),
@@ -125,8 +166,8 @@ pub fn run_reachability_bicycle(system_model: &BicycleModel,
         set.init.dims[d].min = start[d];
         set.init.dims[d].max = start[d];
     }
-    let mut storage_vec: Vec<HyperRectangle<NUM_DIMS>> = Vec::new();
-    storage_vec.push(set.init);
+    let mut storage_vec: Vec<(f64, HyperRectangle<NUM_DIMS>)> = Vec::new();
+    storage_vec.push((0.0, set.init));
     let safe = face_lifting_iterative_improvement(system_model, 
                                                         start_ms, 
                                                         &mut set, 
