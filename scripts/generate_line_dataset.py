@@ -2,7 +2,7 @@ import numpy as np
 import csv
 from tqdm import tqdm
 
-USE_BICYCLE = False
+USE_BICYCLE = True
     
 def generate_start_goal_pairs(n, 
                               obstacles, 
@@ -18,11 +18,11 @@ def generate_start_goal_pairs(n,
     return start_goal_pairs
 
 def generate_feasible_start_goal(obstacles, width, vehicle_width, vehicle_height, start_bounds, goal_bounds):
-    start = np.random.uniform(start_bounds[0], start_bounds[1], 2)
-    goal = np.random.uniform(goal_bounds[0], goal_bounds[1], 2)
+    start = np.array([np.random.uniform(start_bounds[0][0], start_bounds[0][1]), np.random.uniform(start_bounds[1][0], start_bounds[1][1])])
+    goal = np.array([np.random.uniform(goal_bounds[0][0], goal_bounds[0][1]), np.random.uniform(goal_bounds[1][0], goal_bounds[1][1])])
     while not is_feasible(start, goal, obstacles, width, vehicle_width, vehicle_height):
-        start = np.random.uniform(start_bounds[0], start_bounds[1], 2)
-        goal = np.random.uniform(start_bounds[0], start_bounds[1], 2)
+        start = np.array([np.random.uniform(start_bounds[0][0], start_bounds[0][1]), np.random.uniform(start_bounds[1][0], start_bounds[1][1])])
+        goal = np.array([np.random.uniform(goal_bounds[0][0], goal_bounds[0][1]), np.random.uniform(goal_bounds[1][0], goal_bounds[1][1])])
     return start, goal
 
 def is_feasible(start, goal, obstacles, width, vehicle_width, vehicle_height):
@@ -53,17 +53,17 @@ if __name__ == '__main__':
     n = 1000
     
     if USE_BICYCLE:
-        save_path = 'eval_input_data/bicycle/line_dataset.csv'
+        save_path = 'eval_input_data/bicycle/corr_dataset.csv'
     else: 
-        save_path = 'eval_input_data/quadcopter/line_dataset.csv'
+        save_path = 'eval_input_data/quadcopter/corr_dataset.csv'
     
-    obstacles = [[2.0, 0.7], [2.0, -0.7]]
+    obstacles = [[2.,0.7], [2., 1.4], [2., 1.9], [2., 2.4], [2., -0.7], [2., -1.4], [2., -1.9], [2., -2.4]]
     width = 0.5
     
-    start_bounds = [-0.5, 0.5]
-    goal_bounds = [3.5, 4.5]
+    start_bounds = [[-0.5, 0.5], [-0.5, 0.5]]
+    goal_bounds = [[3.5, 4.5], [-0.5, 0.5]]
     
-    vehicle_start_bounds = [-0.75, 0.75]
+    vehicle_start_bounds = [-0.5, 0.5]
     if USE_BICYCLE:
         vehicle_width = 0.7 # buffer of 0.1 on each side
         vehicle_height = 0.5 # buffer of 0.1 on each side
