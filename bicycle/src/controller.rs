@@ -77,7 +77,7 @@ pub fn select_safe_subgoal_circle(
     let robot_rad = 0.1;
     let mut subgoals = 
     if sliding_window{
-        generate_linear_subgoals_sliding(&start, &goal, &[state[0], state[1]], num_subgoal_cands, 1.0, 5.0)
+        generate_linear_subgoals_sliding(&start, &goal, &[state[0], state[1]], num_subgoal_cands, 5.0, 5.0)
     } else {
         generate_linear_subgoals_simple(&start, &goal, num_subgoal_cands)
     };

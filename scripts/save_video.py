@@ -9,8 +9,11 @@ import numpy as np
 import imageio
 from tqdm import tqdm
 
-USING_RTREACH = True
-USING_QUAD = False
+USING_RTREACH = False
+USING_QUAD = True
+
+OBSTACLE_SPEED = 0.05
+OBSTACLE_OSCILLATION_TIME = 28
 
 def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] = None, reachtubes: Optional[pd.DataFrame] = None):
     fig, ax = plt.subplots(figsize=(10, 5))
@@ -28,8 +31,11 @@ def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] 
         ax.set_xlabel('x(m)')
         ax.set_ylabel('y(m)')
         # ax.set_title("Vehicle Simulation", fontsize=30)
-        
-        pt_0 = [2, 0.7]
+        if i < OBSTACLE_OSCILLATION_TIME:
+            offset = OBSTACLE_SPEED * i
+        else:
+            offset = 0
+        pt_0 = [2, 0.7 - offset]
         ax.add_patch(patches.Rectangle(
             (pt_0[0] - w/2, pt_0[1] - h/2),
             w,
@@ -38,7 +44,7 @@ def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] 
             facecolor='blue',
             alpha=0.5
         ))
-        pt_1 = [2, -0.7]
+        pt_1 = [2, -0.7 + offset]
         ax.add_patch(patches.Rectangle(
             (pt_1[0] - w/2, pt_1[1] - h/2),
             w,

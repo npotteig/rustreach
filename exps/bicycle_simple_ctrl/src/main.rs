@@ -1,9 +1,8 @@
-use std::f64::consts::PI;
 use std::env;
 use std::fs;
 use tract_onnx::prelude::*;
 
-use rtreach::obstacle_safety::allocate_obstacles;
+use rtreach::obstacle_safety::{allocate_obstacles, OBSTACLES, DYNAMIC_OBSTACLE_COUNT};
 use rtreach::util::{save_states_to_csv, save_reachtubes_to_csv};
 use rtreach::geometry::HyperRectangle;
 
@@ -16,6 +15,7 @@ use bicycle::controller::{select_safe_subgoal_rtreach, select_safe_subgoal_circl
 const STATES_FILE_PATH: &str = "data/bicycle/simple_ctrl/ctrl_states.csv";
 const SUBGOAL_FILE_PATH: &str = "data/bicycle/simple_ctrl/subgoals.csv";
 const REACHTUBE_FILE_PATH: &str = "data/bicycle/simple_ctrl/reachtubes.csv";
+const OBSTACLE_SPEED: f64 = 0.5; // m/s
 
 fn main() -> TractResult<()> { 
     let save_data = false;
@@ -44,17 +44,24 @@ fn main() -> TractResult<()> {
     let mut bicycle_model = BicycleModel::default();
 
     let num_obstacles: u32 = 2;
+    let dynamic_obstacles: bool = false;
     let points: [[f64; 2]; 2] = [[2.,0.7], [2., -0.7]];
     allocate_obstacles(num_obstacles, &points);
+    let obstacle_sim_fn: fn(f64, &mut Vec<Vec<Vec<f64>>>) = if dynamic_obstacles { obstacle_sim_fn_dynamic } else { obstacle_sim_fn_static };
+    if dynamic_obstacles {
+        let mut dyn_obs_count = DYNAMIC_OBSTACLE_COUNT.lock().unwrap();
+        *dyn_obs_count = 2;
+    }
 
     // Start & Goal States
     let mut start_state = [0.0; NUM_DIMS];
     let goal_list = [[4., 0.]];
+    let start_pt = [0., 0.];
     let mut goal_idx = 0;
     start_state[0] = 0.0;       // x
     start_state[1] = 0.0;       // y
     start_state[2] = 0.0;       // v
-    start_state[3] = PI/2.0;       // theta
+    start_state[3] = 0.0;       // theta
 
     // let mut ctrl_input = [0.0; 2];
     // ctrl_input[0] = 1.0;     // throttle
@@ -63,7 +70,7 @@ fn main() -> TractResult<()> {
     // Data Storage
     let mut states_vec: Vec<[f64; NUM_DIMS]> = Vec::new();
     let mut subgoal_vec: Vec<[f64; 2]> = Vec::new();
-    let mut reachtube_vec: Vec<Vec<HyperRectangle<NUM_DIMS>>> = Vec::new();
+    let mut reachtube_vec: Vec<Vec<(f64, HyperRectangle<NUM_DIMS>)>> = Vec::new();
 
     let mut state = start_state.clone();
     states_vec.push(state);
@@ -111,10 +118,10 @@ fn main() -> TractResult<()> {
         if use_subgoal_ctrl {
             let (safe, subgoal, storage_vec) = 
             if use_rtreach {
-                select_safe_subgoal_rtreach(&mut bicycle_model, state, [start_state[0], start_state[1]], goal_list[goal_idx], num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control, false)
+                select_safe_subgoal_rtreach(&mut bicycle_model, state, [start_pt[0], start_pt[1]], goal_list[goal_idx], num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control, false, obstacle_sim_fn)
             }
             else{
-                select_safe_subgoal_circle(&state, [start_state[0], start_state[1]], goal_list[goal_idx], num_subgoal_cands*10, false)
+                select_safe_subgoal_circle(&state, [start_pt[0], start_pt[1]], goal_list[goal_idx], num_subgoal_cands*10, false)
             };
             
             subgoal_vec.push(subgoal);
@@ -132,6 +139,13 @@ fn main() -> TractResult<()> {
 
         let mut next_state = step_bicycle(&bicycle_model, &state, ctrl_input[0], ctrl_input[1], step_size);
         
+        {
+            let mut obstacles_lock = OBSTACLES.lock().unwrap();
+            if let Some(obstacles) = obstacles_lock.as_mut() {
+                obstacle_sim_fn(step_size, obstacles);
+            }
+        }
+
         next_state[3] = normalize_angle(next_state[3]);
         states_vec.push(next_state);
         time += step_size;
@@ -161,4 +175,28 @@ fn main() -> TractResult<()> {
     println!("The state after {} s is: \n [{},{},{},{}] \n", time-step_size,state[0],state[1],state[2],state[3]);
 
     Ok(())
+}
+
+fn obstacle_sim_fn_static(_: f64, _: &mut Vec<Vec<Vec<f64>>>) {
+    // Do nothing
+}
+
+fn obstacle_sim_fn_dynamic(t: f64, obstacles: &mut Vec<Vec<Vec<f64>>>) {
+    let offset = OBSTACLE_SPEED * t;
+    obstacles[0][1][0] -= offset;
+    if obstacles[0][1][0] < -0.95 {
+        obstacles[0][1][0] = -0.95;
+    }
+    obstacles[0][1][1] -= offset;
+    if obstacles[0][1][1] < -0.45 {
+        obstacles[0][1][1] = -0.45;
+    }
+    obstacles[1][1][0] += offset;
+    if obstacles[1][1][0] > 0.45 {
+        obstacles[1][1][0] = 0.45;
+    }
+    obstacles[1][1][1] += offset;
+    if obstacles[1][1][1] > 0.95 {
+        obstacles[1][1][1] = 0.95;
+    }
 }

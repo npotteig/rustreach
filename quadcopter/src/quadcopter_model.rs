@@ -1,7 +1,7 @@
 use super::dynamics_quadcopter::{QuadcopterModel, QUAD_NUM_DIMS as NUM_DIMS};
 use super::simulate_quadcopter::simulate_quadcopter_exp;
 use rtreach::geometry::HyperRectangle;
-use rtreach::obstacle_safety::{check_safety_obstacles, check_safety_wall, OBSTACLES};
+use rtreach::obstacle_safety::{check_safety_obstacles, check_safety_wall, OBSTACLES, DYNAMIC_OBSTACLE_COUNT, OBSTACLE_COUNT};
 use rtreach::face_lift::{LiftingSettings, face_lifting_iterative_improvement};
 // a note from the quadcopter simulator 
 // the arm length in x direction is 0.16 meters
@@ -49,9 +49,13 @@ pub fn intermediate_state(r: &mut HyperRectangle<NUM_DIMS>, time: f64, obstacle_
     let obstacles: &Option<Vec<Vec<Vec<f64>>>> = &*OBSTACLES.lock().unwrap();
     match obstacles {
         Some(obst) => {
-            let mut obst_clone = obst.clone();
-            obstacle_sim_fn(time, &mut obst_clone);
-            allowed = check_safety_obstacles(r, &obst_clone);
+            let dyn_obs_ct = *DYNAMIC_OBSTACLE_COUNT.lock().unwrap();
+            let tot_obs_ct = *OBSTACLE_COUNT.lock().unwrap();
+            let mut dyn_obs_vec = obst[0..dyn_obs_ct as usize].to_vec();
+            obstacle_sim_fn(time, &mut dyn_obs_vec);
+            allowed = 
+            check_safety_obstacles(r, &dyn_obs_vec, dyn_obs_ct) &&
+            check_safety_obstacles(r, &obst[(dyn_obs_ct as usize)..], tot_obs_ct - dyn_obs_ct);
         },
         None => {
             allowed = true;
@@ -99,7 +103,8 @@ pub fn has_collided(state: &[f64; NUM_DIMS]) -> bool {
     let obstacles: &Option<Vec<Vec<Vec<f64>>>> = &*OBSTACLES.lock().unwrap();
     match obstacles {
         Some(obst) => {
-            allowed = check_safety_obstacles(&r, obst);
+            let tot_obs_ct = *OBSTACLE_COUNT.lock().unwrap();
+            allowed = check_safety_obstacles(&r, obst, tot_obs_ct);
         },
         None => {
             allowed = true;

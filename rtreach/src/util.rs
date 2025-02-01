@@ -31,10 +31,11 @@ pub fn save_states_to_csv<const NUM_DIMS: usize>(filename: &str, data: &Vec<[f64
     wtr.flush().unwrap();
 }
 
-pub fn save_rects_to_csv<const NUM_DIMS: usize>(filename: &str, data: &Vec<HyperRectangle<NUM_DIMS>>) {
+pub fn save_rects_to_csv<const NUM_DIMS: usize>(filename: &str, data: &Vec<(f64, HyperRectangle<NUM_DIMS>)>) {
     let mut wtr = Writer::from_path(filename).unwrap();
     // Create a single header
     let mut header = vec![];
+    header.push(format!("rect_time"));
     for d in 0..NUM_DIMS {
         header.push(format!("min{}", d));
         header.push(format!("max{}", d));
@@ -44,9 +45,10 @@ pub fn save_rects_to_csv<const NUM_DIMS: usize>(filename: &str, data: &Vec<Hyper
     // Write each HyperRectangle's min and max values
     for r in data {
         let mut record = vec![];
+        record.push(format!("{}", r.0));
         for d in 0..NUM_DIMS {
-            record.push(format!("{}", r.dims[d].min));
-            record.push(format!("{}", r.dims[d].max));
+            record.push(format!("{}", r.1.dims[d].min));
+            record.push(format!("{}", r.1.dims[d].max));
         }
         let _ = wtr.write_record(&record);
     }

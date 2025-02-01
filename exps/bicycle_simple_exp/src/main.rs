@@ -87,7 +87,8 @@ fn main() -> TractResult<()> {
                                                                                        ctrl_input[1], 
                                                                                        store_rects, 
                                                                                        fixed_step,
-                                                                                    false);
+                                                                                    false,
+                                                                                       obstacle_sim_fn_static);
 
     let (_, storage_rects_dc) = run_reachability_bicycle(&bicycle_model, 
                                                                                        start_state, 
@@ -99,16 +100,21 @@ fn main() -> TractResult<()> {
                                                                                        ctrl_input[1], 
                                                                                        store_rects, 
                                                                                        fixed_step,
-                                                                                    true);
+                                                                                    true,
+                                                                                       obstacle_sim_fn_static);
     if save_data {
         save_rects_to_csv(rects_fc_path.to_str().unwrap(), &storage_rects_fc);
         save_rects_to_csv(rects_dc_path.to_str().unwrap(), &storage_rects_dc);
     }
     println!("Final Hyperrectangle for Fixed Control: ");
-    println(&storage_rects_fc[storage_rects_fc.len()-2]);
+    println(&storage_rects_fc[storage_rects_fc.len()-2].1);
 
     println!("Final Hyperrectangle for Dynamic RL Control: ");
-    println(&storage_rects_dc[storage_rects_dc.len()-2]);
+    println(&storage_rects_dc[storage_rects_dc.len()-2].1);
 
     Ok(())
+}
+
+fn obstacle_sim_fn_static(_: f64, _: &mut Vec<Vec<Vec<f64>>>) {
+    // Do nothing
 }

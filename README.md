@@ -16,6 +16,12 @@ We include four experiments discussed below. The experiments source code can be 
 
 1. Taylor T. Johnson, Stanley Bak, Marco Caccamo, and Lui Sha. 2016. Real-Time Reachability for Verified Simplex Design. ACM Trans. Embed. Comput. Syst. 15, 2, Article 26 (May 2016), 27 pages. https://doi.org/10.1145/2723871
 
+## Install Rust
+
+```shell
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
 ## Paper Experiments
 
 The general running scheme is
@@ -32,6 +38,10 @@ cargo run --release -p <exp_name> -- <args>
 * Waypoint Only (WO) - RL controller is conditioned only on next waypoint.
 * RusTReach Fixed Control (RRFC) - RL controller is conditioned on intermediate subgoals. Subgoals selected based on if its reachability assuming fixed control over a finite-time horizon does not intersect with obstacles.
 * RusTReach RL Control (Ours) (RRRLC) - RL controller is conditioned on intermediate subgoals. Subgoals selected based on if its reachability using predicted RL control over a finite-time horizon does not intersect with obstacles.
+
+### Learning and MFNLC
+
+Learning ONNX models in `models/` and evaluation of Model-Free Neural Lyapunov Control (MFNLC) can be found in this repository https://github.com/npotteig/rustreach_learning
 
 ### Corridor
 ![Corridor Map](figs/paper/corridor_map.jpg)
@@ -67,7 +77,7 @@ A two-dimensional grid map from a neighborhood in Microsoft AirSim Flight Simula
 
 Example run for bicycle model using WO algorithm that does not save output data:
 ```shell
-cargo run --release -p bicycle_nbd_exp -- wo 0
+cargo run --release -p bicycle_nbd_exp -- wo astar 0
 ```
 
 ## Extra experiments

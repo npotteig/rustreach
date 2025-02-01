@@ -1,13 +1,11 @@
 use super::dynamics_bicycle::{BicycleModel, BICYCLE_NUM_DIMS as NUM_DIMS};
 use super::simulate_bicycle::simulate_bicycle;
 use rtreach::geometry::HyperRectangle;
-use rtreach::obstacle_safety::{check_safety_obstacles, check_safety_wall, OBSTACLES};
+use rtreach::obstacle_safety::{check_safety_obstacles, check_safety_wall, OBSTACLES, DYNAMIC_OBSTACLE_COUNT, OBSTACLE_COUNT};
 use rtreach::face_lift::{LiftingSettings, face_lifting_iterative_improvement};
 // a note from the f1tenth simulator 
 // the car is 0.5 m long in the x direction 
 // 0.3 long in the y direction
-
-pub const OBSTACLE_SPEED: f64 = 0.5; // m/s
 
 // function that stops simulation after two seconds
 pub fn should_stop(state: [f64; NUM_DIMS], sim_time: f64, stop_time: &mut f64) -> bool {
@@ -49,27 +47,13 @@ pub fn intermediate_state(r: &mut HyperRectangle<NUM_DIMS>, time: f64, obstacle_
     let obstacles: &Option<Vec<Vec<Vec<f64>>>> = &*OBSTACLES.lock().unwrap();
     match obstacles {
         Some(obst) => {
-            let mut obst_clone = obst.clone();
-            obstacle_sim_fn(time, &mut obst_clone);
-            // let offset = OBSTACLE_SPEED * time;
-            // obst_clone[0][1][0] -= offset;
-            // if obst_clone[0][1][0] < -0.95 {
-            //     obst_clone[0][1][0] = -0.95;
-            // }
-            // obst_clone[0][1][1] -= offset;
-            // if obst_clone[0][1][1] < -0.45 {
-            //     obst_clone[0][1][1] = -0.45;
-            // }
-            // obst_clone[1][1][0] += offset;
-            // if obst_clone[1][1][0] > 0.45 {
-            //     obst_clone[1][1][0] = 0.45;
-            // }
-            // obst_clone[1][1][1] += offset;
-            // if obst_clone[1][1][1] > 0.95 {
-            //     obst_clone[1][1][1] = 0.95;
-            // }
-            
-            allowed = check_safety_obstacles(r, &obst_clone);
+            let dyn_obs_ct = *DYNAMIC_OBSTACLE_COUNT.lock().unwrap();
+            let tot_obs_ct = *OBSTACLE_COUNT.lock().unwrap();
+            let mut dyn_obs_vec = obst[0..dyn_obs_ct as usize].to_vec();
+            obstacle_sim_fn(time, &mut dyn_obs_vec);
+            allowed = 
+            check_safety_obstacles(r, &dyn_obs_vec, dyn_obs_ct) &&
+            check_safety_obstacles(r, &obst[(dyn_obs_ct as usize)..], tot_obs_ct - dyn_obs_ct);
         },
         None => {
             allowed = true;
@@ -121,7 +105,8 @@ pub fn has_collided(state: &[f64; NUM_DIMS]) -> bool {
     let obstacles: &Option<Vec<Vec<Vec<f64>>>> = &*OBSTACLES.lock().unwrap();
     match obstacles {
         Some(obst) => {
-            allowed = check_safety_obstacles(&r, obst);
+            let tot_obs_ct = *OBSTACLE_COUNT.lock().unwrap();
+            allowed = check_safety_obstacles(&r, obst, tot_obs_ct);
         },
         None => {
             allowed = true;

@@ -1,10 +1,13 @@
 use std::{env, vec};
 use std::time::Instant;
 use std::fs;
+use std::sync::Mutex;
 
 use tract_onnx::prelude::*;
+use lazy_static::lazy_static;
+use pbr::ProgressBar;
 
-use rtreach::obstacle_safety::load_obstacles_from_csv;
+use rtreach::obstacle_safety::{load_obstacles_from_csv, DYNAMIC_OBSTACLE_COUNT, OBSTACLES};
 use rtreach::util::load_paths_from_csv;
 
 use quadcopter::simulate_quadcopter::simulate_quadcopter;
@@ -16,6 +19,13 @@ use quadcopter::controller::{select_safe_subgoal_rtreach, select_safe_subgoal_ci
 const PATH_DATASET_PARENT: &str = "eval_input_data/";
 const OBSTACLE_DATASET_PATH: &str = "eval_input_data/rr_nbd_obstacles.csv";
 const EVAL_OUTPUT_PARENT: &str = "eval_output_data/quadcopter/nbd_exp/";
+const OBSTACLE_SPEED: f64 = 0.5; // m/s
+
+// Define global variables using lazy_static
+lazy_static! {
+    static ref PERP_SLOPE_DX: Mutex<f64> = Mutex::new(0.0);
+    static ref PERP_SLOPE_DY: Mutex<f64> = Mutex::new(0.0);
+}
 
 fn main() -> TractResult<()> {
     let args: Vec<String> = env::args().collect();
@@ -27,7 +37,8 @@ fn main() -> TractResult<()> {
     let save_data: i32;
     let algorithm: &str;
     let waypt_algorithm: &str;
-    if args.len() == 4 {
+    let obstacle_type: &str;
+    if args.len() == 5 {
         algorithm = &args[1];
         if args[2] != "astar" && args[2] != "rrt" {
             eprintln!("Error: Invalid waypoint algorithm provided.");
@@ -35,7 +46,8 @@ fn main() -> TractResult<()> {
             std::process::exit(1); // Exit with a non-zero status code
         }
         waypt_algorithm = &args[2];
-        save_data = args[3].parse().expect("Second argument must be an integer");
+        obstacle_type = &args[3];
+        save_data = args[4].parse().expect("Second argument must be an integer");
         println!("Algorithm: {}", algorithm);
         println!("Waypoint Algorithm: {}", waypt_algorithm);
         println!("Save Data: {}", save_data);
@@ -64,6 +76,25 @@ fn main() -> TractResult<()> {
         std::process::exit(1); // Exit with a non-zero status code
     }
 
+    // Set obstacle type
+    let obstacle_sim_fn: fn(f64, &mut Vec<Vec<Vec<f64>>>);
+    let initial_points: Vec<[f64; 2]>;
+    if obstacle_type == "static" {
+        obstacle_sim_fn = obstacle_sim_fn_static;
+        initial_points = vec![];
+    }
+    else if obstacle_type == "dynamic" {
+        obstacle_sim_fn = obstacle_sim_fn_dynamic;
+        initial_points = vec![[0.0, 0.0]];
+        let mut dyn_obs_count = DYNAMIC_OBSTACLE_COUNT.lock().unwrap();
+        *dyn_obs_count = 1;
+    }
+    else {
+        eprintln!("Error: Invalid obstacle type provided.");
+        eprintln!("Obstacle type must be one of the following: static, dynamic");
+        std::process::exit(1); // Exit with a non-zero status code
+    }
+
 
     // Get the current working directory
     let current_dir: std::path::PathBuf = env::current_dir().expect("Failed to get current directory");
@@ -72,7 +103,7 @@ fn main() -> TractResult<()> {
     let path_dataset_path = path_dataset_parent.join(format!("{}_rustreach_paths.csv", waypt_algorithm));
     let obstacle_dataset_path = current_dir.join(OBSTACLE_DATASET_PATH);
     let eval_output_parent = current_dir.join(EVAL_OUTPUT_PARENT);
-    let eval_output_path = eval_output_parent.join(format!("{}_nbd_exp.csv", algorithm));
+    let eval_output_path = eval_output_parent.join(format!("{}_{}_{}_nbd_exp.csv", algorithm, waypt_algorithm, obstacle_type));
 
     if save_data == 1 {
         print!("Saving data to: {}", eval_output_path.to_str().unwrap());
@@ -80,7 +111,7 @@ fn main() -> TractResult<()> {
     }
 
     let paths_vec = load_paths_from_csv(&path_dataset_path);
-    load_obstacles_from_csv(&obstacle_dataset_path);
+    load_obstacles_from_csv(&obstacle_dataset_path, initial_points);
 
     // Load the ONNX model from file
     let model = tract_onnx::onnx()
@@ -112,7 +143,7 @@ fn main() -> TractResult<()> {
     let start_ms = 0;
     let store_rect = false;
     let fixed_step = false;
-    let num_subgoal_cands = 10;
+    let num_subgoal_cands = 5;
 
     quadcopter_model.set_ctrl_fn(pi_low);
     if learning_enabled {
@@ -127,9 +158,14 @@ fn main() -> TractResult<()> {
     let mut max_subgoal_computation_time = vec![];
     let mut deadline_violations = vec![];
 
+    let mut pb = ProgressBar::new(1000);
     for pth in paths_vec.iter(){
-        println!("index: {}", index);
-        index += 1;
+        pb.inc();
+        // println!("index: {}", index);
+        // index += 1;
+        // if index == 50 {
+        //     break;
+        // }
         let mut state = start_state.clone();
         state[0] = pth[0][0];
         state[1] = pth[0][1];
@@ -147,12 +183,29 @@ fn main() -> TractResult<()> {
 
         quadcopter_model.set_goal(cur_goal_waypoint);
 
+        {
+            if obstacle_type == "dynamic" {
+                let mut obstacles_lock = OBSTACLES.lock().unwrap();
+                if let Some(obstacles) = obstacles_lock.as_mut() {
+                    update_obstacle_pos(obstacles, &prev_goal_waypoint, &cur_goal_waypoint);
+                }
+            }
+        }
+
         while !collision && !no_subgoal && step < total_steps && distance(&state, &final_goal_waypoint) > thresh {
             if cur_goal_waypoint != final_goal_waypoint && distance(&state, &cur_goal_waypoint) < thresh{
                 goal_idx += 1;
                 prev_goal_waypoint = cur_goal_waypoint.clone();
                 cur_goal_waypoint = [pth[goal_idx][0], pth[goal_idx][1], 0.0];
                 quadcopter_model.set_goal(cur_goal_waypoint);
+                {
+                    if obstacle_type == "dynamic" && distance(&prev_goal_waypoint, &cur_goal_waypoint) > 4.0 {
+                        let mut obstacles_lock = OBSTACLES.lock().unwrap();
+                        if let Some(obstacles) = obstacles_lock.as_mut() {
+                            update_obstacle_pos(obstacles, &prev_goal_waypoint, &cur_goal_waypoint);
+                        }
+                    }
+                }
             }
 
             let ctrl_input;
@@ -160,7 +213,7 @@ fn main() -> TractResult<()> {
                 let start_time = Instant::now();
                 let (safe, subgoal, _) = 
                 if use_rtreach {
-                    select_safe_subgoal_rtreach(&mut quadcopter_model, state, prev_goal_waypoint, cur_goal_waypoint, num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control, true)
+                    select_safe_subgoal_rtreach(&mut quadcopter_model, state, prev_goal_waypoint, cur_goal_waypoint, num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control, true, obstacle_sim_fn)
                 }
                 else{
                     select_safe_subgoal_circle(&state, prev_goal_waypoint, cur_goal_waypoint, num_subgoal_cands*10, true)
@@ -184,7 +237,18 @@ fn main() -> TractResult<()> {
     
             let mut next_state = simulate_quadcopter(&quadcopter_model, state, &ctrl_input, euler_step_size, step_size);
             
-            next_state[3] = normalize_angle(next_state[3]);
+            {
+                if obstacle_type == "dynamic" {
+                    let mut obstacles_lock = OBSTACLES.lock().unwrap();
+                    if let Some(obstacles) = obstacles_lock.as_mut() {
+                        obstacle_sim_fn(step_size, obstacles);
+                    }
+                }
+            }
+
+            next_state[3] = normalize_angle(next_state[3]); // phi
+            next_state[4] = normalize_angle(next_state[4]); // theta
+            next_state[5] = normalize_angle(next_state[5]); // psi
             time += step_size;
             state = next_state;
             if has_collided(&state) {
@@ -261,4 +325,65 @@ fn main() -> TractResult<()> {
 
     Ok(())
     
+}
+
+fn obstacle_sim_fn_static(_: f64, _: &mut Vec<Vec<Vec<f64>>>) {
+    // Do nothing
+}
+
+fn obstacle_sim_fn_dynamic(t: f64, obstacles: &mut Vec<Vec<Vec<f64>>>) {
+    let offset = OBSTACLE_SPEED * t;
+    let perp_slope_dx = *PERP_SLOPE_DX.lock().unwrap();
+    let perp_slope_dy = *PERP_SLOPE_DY.lock().unwrap();
+    obstacles[0][0][0] -= perp_slope_dx*offset;
+    obstacles[0][0][1] -= perp_slope_dx*offset;
+    obstacles[0][1][0] -= perp_slope_dy*offset;
+    obstacles[0][1][1] -= perp_slope_dy*offset;
+}
+
+fn update_obstacle_pos(obstacles: &mut Vec<Vec<Vec<f64>>>, prev_goal_waypoint: &[f64; 3], cur_goal_waypoint: &[f64; 3]) {
+    let w = 0.5;
+    let h = 0.5;
+    
+    let mid_x = (prev_goal_waypoint[0] + cur_goal_waypoint[0]) / 2.0;
+    let mid_y = (prev_goal_waypoint[1] + cur_goal_waypoint[1]) / 2.0;
+
+    let new_x: f64;
+    let new_y: f64;
+    let offset = 2.0;
+    let mut perp_slope_dx = PERP_SLOPE_DX.lock().unwrap();
+    let mut perp_slope_dy = PERP_SLOPE_DY.lock().unwrap();
+    if prev_goal_waypoint[0] == cur_goal_waypoint[0] {
+        new_x = mid_x + offset;
+        new_y = mid_y;
+        *perp_slope_dx = 1.0;
+        *perp_slope_dy = 0.0;
+    }
+    else if prev_goal_waypoint[1] == cur_goal_waypoint[1] {
+        new_x = mid_x;
+        new_y = mid_y + offset;
+        *perp_slope_dx = 0.0;
+        *perp_slope_dy = 1.0;
+    }
+    else {
+        // General case: Compute perpendicular offset using a normal vector
+        let dx = cur_goal_waypoint[0] - prev_goal_waypoint[0];
+        let dy = cur_goal_waypoint[1] - prev_goal_waypoint[1];
+        let length = (dx * dx + dy * dy).sqrt();
+        
+        // Perpendicular unit vector (-dy/length, dx/length)
+        let nx = -dy / length;
+        let ny = dx / length;
+        *perp_slope_dx = nx;
+        *perp_slope_dy = ny;
+        
+        // Apply offset in the normal direction
+        new_x = mid_x + offset * nx;
+        new_y = mid_y + offset * ny;
+    }
+
+    obstacles[0][0][0] = new_x - w/2.0;
+    obstacles[0][0][1] = new_x + w/2.0;
+    obstacles[0][1][0] = new_y - h/2.0;
+    obstacles[0][1][1] = new_y + h/2.0;
 }

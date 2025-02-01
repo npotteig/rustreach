@@ -11,9 +11,10 @@ use super::debug::DEBUG;
 lazy_static! {
     pub static ref WALL_COORDS: Mutex<Option<Vec<Vec<f64>>>> = Mutex::new(None);
     pub static ref OBSTACLES: Mutex<Option<Vec<Vec<Vec<f64>>>>> = Mutex::new(None);
+    pub static ref DYNAMIC_OBSTACLE_COUNT: Mutex<u32> = Mutex::new(0);
     static ref FILE_ROWS: Mutex<u32> = Mutex::new(0);
     static ref FILE_COLUMNS: Mutex<u32> = Mutex::new(2);
-    static ref OBSTACLE_COUNT: Mutex<u32> = Mutex::new(0);
+    pub static ref OBSTACLE_COUNT: Mutex<u32> = Mutex::new(0);
 }
 
 fn count_lines(filename: &str) -> io::Result<usize> {
@@ -87,10 +88,10 @@ pub fn check_safety<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>, cone
     false
 }
 
-pub fn check_safety_obstacles<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>, obst: &Vec<Vec<Vec<f64>>>) -> bool {
+pub fn check_safety_obstacles<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>, obst: &[Vec<Vec<f64>>], obstacle_count: u32) -> bool {
     let mut allowed: bool = true;
 
-    let obstacle_count: u32 = *OBSTACLE_COUNT.lock().unwrap();
+    // let obstacle_count: u32 = *OBSTACLE_COUNT.lock().unwrap();
 
     for j in 0..obstacle_count {
         let obs: [[f64; 2]; 2] = [
@@ -171,8 +172,8 @@ pub fn check_safety_wall<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>)
     safe_val
 }
 
-pub fn load_obstacles_from_csv(filename: &std::path::PathBuf){
-    let mut obstacles_vec: Vec<[f64; 2]> = vec![];
+pub fn load_obstacles_from_csv(filename: &std::path::PathBuf, initial_points: Vec<[f64; 2]>) {
+    let mut obstacles_vec: Vec<[f64; 2]> = initial_points;
     println!("Loading obstacles from file: {:?}", filename);
     let mut reader = ReaderBuilder::new().has_headers(false).from_path(filename).unwrap();
     for result in reader.records() {

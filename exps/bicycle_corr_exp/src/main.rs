@@ -4,8 +4,9 @@ use std::fs;
 
 use csv::ReaderBuilder;
 use tract_onnx::prelude::*;
+use pbr::ProgressBar;
 
-use rtreach::obstacle_safety::allocate_obstacles;
+use rtreach::obstacle_safety::{allocate_obstacles, OBSTACLES, DYNAMIC_OBSTACLE_COUNT};
 
 use bicycle::simulate_bicycle::step_bicycle;
 use bicycle::bicycle_model::has_collided;
@@ -15,6 +16,7 @@ use bicycle::controller::{select_safe_subgoal_rtreach, select_safe_subgoal_circl
 
 const CORR_DATASET_PATH: &str = "eval_input_data/bicycle/corr_dataset.csv";
 const EVAL_OUTPUT_PARENT: &str = "eval_output_data/bicycle/corr_exp/";
+const OBSTACLE_SPEED: f64 = 0.5; // m/s
 
 fn main() -> TractResult<()> {
     let args: Vec<String> = env::args().collect();
@@ -25,15 +27,17 @@ fn main() -> TractResult<()> {
     // Access specific arguments
     let save_data: i32;
     let algorithm: &str;
-    if args.len() == 3 {
+    let obstacle_type: &str;
+    if args.len() == 4 {
         algorithm = &args[1];
-        save_data = args[2].parse().expect("Second argument must be an integer");
+        obstacle_type = &args[2];
+        save_data = args[3].parse().expect("Second argument must be an integer");
         println!("Algorithm: {}", algorithm);
         println!("Save Data: {}", save_data);
     }
     else {
         eprintln!("Error: Not enough arguments provided.");
-        eprintln!("Usage: {} <algorithm> <save_data>", args[0]);
+        eprintln!("Usage: {} <algorithm> <obstacle_type> <save_data>", args[0]);
         std::process::exit(1); // Exit with a non-zero status code
     }
 
@@ -55,12 +59,28 @@ fn main() -> TractResult<()> {
         std::process::exit(1); // Exit with a non-zero status code
     }
 
+    // Set obstacle type
+    let obstacle_sim_fn: fn(f64, &mut Vec<Vec<Vec<f64>>>);
+    if obstacle_type == "static" {
+        obstacle_sim_fn = obstacle_sim_fn_static;
+    }
+    else if obstacle_type == "dynamic" {
+        obstacle_sim_fn = obstacle_sim_fn_dynamic;
+        let mut dyn_obs_count = DYNAMIC_OBSTACLE_COUNT.lock().unwrap();
+        *dyn_obs_count = 2;
+    }
+    else {
+        eprintln!("Error: Invalid obstacle type provided.");
+        eprintln!("Obstacle type must be one of the following: static, dynamic");
+        std::process::exit(1); // Exit with a non-zero status code
+    }
+
     // Get the current working directory
     let current_dir = env::current_dir().expect("Failed to get current directory");
 
     let corr_dataset_path = current_dir.join(CORR_DATASET_PATH);
     let eval_output_parent = current_dir.join(EVAL_OUTPUT_PARENT);
-    let eval_output_path = eval_output_parent.join(format!("{}_corr_exp.csv", algorithm));
+    let eval_output_path = eval_output_parent.join(format!("{}_{}_corr_exp.csv", algorithm, obstacle_type));
 
     if save_data == 1 {
         print!("Saving data to: {}", eval_output_path.to_str().unwrap());
@@ -85,6 +105,11 @@ fn main() -> TractResult<()> {
     let num_obstacles: u32 = 2;
     let points: [[f64; 2]; 2] = [[2.,0.7], [2., -0.7]];
     allocate_obstacles(num_obstacles, &points);
+    let initial_obstacles: Vec<Vec<Vec<f64>>>;
+    {
+        let obstacles_lock = OBSTACLES.lock().unwrap();
+        initial_obstacles = obstacles_lock.clone().unwrap();
+    }
     
     // Start & Goal States
     let start_state = [0.0; NUM_DIMS];
@@ -112,7 +137,7 @@ fn main() -> TractResult<()> {
         bicycle_model.set_model(&model);
     }
 
-    let mut index = 0;
+    // let mut index = 0;
     let mut time_vec = vec![];
     let mut collisions = vec![];
     let mut no_subgoal_ctrl = vec![];
@@ -120,9 +145,13 @@ fn main() -> TractResult<()> {
     let mut max_subgoal_computation_time = vec![];
     let mut deadline_violations = vec![];
 
+    let mut pb = ProgressBar::new(1000);
     for row in rdr.records() {
-        println!("index: {}", index);
-        index += 1;
+        pb.inc();
+        // index += 1;
+        // if index == 100 {
+        //     break;
+        // }
         let mut state = start_state.clone();
         let mut time = 0.0;
         let mut step = 0;
@@ -143,6 +172,11 @@ fn main() -> TractResult<()> {
 
         bicycle_model.set_goal(goal_waypoint);
 
+        {
+            let mut obstacles_lock = OBSTACLES.lock().unwrap();
+            *obstacles_lock = Some(initial_obstacles.clone());
+        }
+
         while !collision && !no_subgoal && step < total_steps && distance(&state, &goal_waypoint) > thresh {
     
             let ctrl_input;
@@ -150,7 +184,7 @@ fn main() -> TractResult<()> {
                 let start_time = Instant::now();
                 let (safe, subgoal, _) = 
                 if use_rtreach {
-                    select_safe_subgoal_rtreach(&mut bicycle_model, state, start_waypoint, goal_waypoint, num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control, false)
+                    select_safe_subgoal_rtreach(&mut bicycle_model, state, start_waypoint, goal_waypoint, num_subgoal_cands, sim_time, step_size, wall_time_ms, start_ms, store_rect, fixed_step, use_rtreach_dynamic_control, false, obstacle_sim_fn)
                 }
                 else{
                     select_safe_subgoal_circle(&state, start_waypoint, goal_waypoint, num_subgoal_cands*10, false)
@@ -174,6 +208,13 @@ fn main() -> TractResult<()> {
     
             let mut next_state = step_bicycle(&bicycle_model, &state, ctrl_input[0], ctrl_input[1], step_size);
             
+            {
+                let mut obstacles_lock = OBSTACLES.lock().unwrap();
+                if let Some(obstacles) = obstacles_lock.as_mut() {
+                    obstacle_sim_fn(step_size, obstacles);
+                }
+            }
+
             next_state[3] = normalize_angle(next_state[3]);
             time += step_size;
             state = next_state;
@@ -244,4 +285,28 @@ fn main() -> TractResult<()> {
     }
 
     Ok(())
+}
+
+fn obstacle_sim_fn_static(_: f64, _: &mut Vec<Vec<Vec<f64>>>) {
+    // Do nothing
+}
+
+fn obstacle_sim_fn_dynamic(t: f64, obstacles: &mut Vec<Vec<Vec<f64>>>) {
+    let offset = OBSTACLE_SPEED * t;
+    obstacles[0][1][0] -= offset;
+    if obstacles[0][1][0] < -0.95 {
+        obstacles[0][1][0] = -0.95;
+    }
+    obstacles[0][1][1] -= offset;
+    if obstacles[0][1][1] < -0.45 {
+        obstacles[0][1][1] = -0.45;
+    }
+    obstacles[1][1][0] += offset;
+    if obstacles[1][1][0] > 0.45 {
+        obstacles[1][1][0] = 0.45;
+    }
+    obstacles[1][1][1] += offset;
+    if obstacles[1][1][1] > 0.95 {
+        obstacles[1][1][1] = 0.95;
+    }
 }

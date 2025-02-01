@@ -125,6 +125,7 @@ version = "0.1.0"
 dependencies = [
  "bicycle",
  "csv",
+ "pbr",
  "rtreach",
  "tract",
  "tract-onnx",
@@ -136,6 +137,8 @@ version = "0.1.0"
 dependencies = [
  "bicycle",
  "csv",
+ "lazy_static",
+ "pbr",
  "rtreach",
  "tract",
  "tract-onnx",
@@ -410,6 +413,15 @@ checksum = "6b50826342786a51a89e2da3a28f1c32b06e387201bc2d19791f622c673706b1"
 dependencies = [
  "cast",
  "itertools 0.10.5",
+]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.5.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06ba6d68e24814cb8de6bb986db8222d3a027d15872cabc0d18817bc3c0e4471"
+dependencies = [
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -1388,6 +1400,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
+name = "pbr"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed5827dfa0d69b6c92493d6c38e633bbaa5937c153d0d7c28bf12313f8c6d514"
+dependencies = [
+ "crossbeam-channel",
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1586,6 +1609,7 @@ name = "quadcopter_corr_exp"
 version = "0.1.0"
 dependencies = [
  "csv",
+ "pbr",
  "quadcopter",
  "rtreach",
  "tract",
@@ -1597,6 +1621,8 @@ name = "quadcopter_nbd_exp"
 version = "0.1.0"
 dependencies = [
  "csv",
+ "lazy_static",
+ "pbr",
  "quadcopter",
  "rtreach",
  "tract",
