@@ -172,17 +172,26 @@ pub fn check_safety_wall<const NUM_DIMS: usize>(rect: &HyperRectangle<NUM_DIMS>)
     safe_val
 }
 
-pub fn load_obstacles_from_csv(filename: &std::path::PathBuf, initial_points: Vec<[f64; 2]>) {
-    let mut obstacles_vec: Vec<[f64; 2]> = initial_points;
+pub fn load_obstacles_from_csv(filename: &std::path::PathBuf) -> Vec<Vec<[f64; 2]>>{
+    let mut obstacles_vec: Vec<Vec<[f64; 2]>> = vec![];
     println!("Loading obstacles from file: {:?}", filename);
+    let mut cur_path_id = 0;
+    let mut obstacle_set: Vec<[f64; 2]> = vec![];
     let mut reader = ReaderBuilder::new().has_headers(false).from_path(filename).unwrap();
     for result in reader.records() {
         let record = result.unwrap();
+        let path_id = record.get(0).unwrap().parse::<i32>().unwrap();
         let x = record.get(0).unwrap().parse::<f64>().unwrap();
         let y = record.get(1).unwrap().parse::<f64>().unwrap();
-        obstacles_vec.push([x, y]);
+        if cur_path_id != path_id {
+            obstacles_vec.push(obstacle_set);
+            obstacle_set = vec![];
+            cur_path_id = path_id;
+        }
+        obstacle_set.push([x, y]);
     }
-    allocate_obstacles(obstacles_vec.len() as u32, &obstacles_vec);
+    return obstacles_vec;
+    // allocate_obstacles(obstacles_vec.len() as u32, &obstacles_vec);
 }
 
 pub fn allocate_obstacles(num_obstacles: u32, points: &[[f64; 2]]){

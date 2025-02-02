@@ -7,7 +7,7 @@ use tract_onnx::prelude::*;
 use lazy_static::lazy_static;
 use pbr::ProgressBar;
 
-use rtreach::obstacle_safety::{load_obstacles_from_csv, DYNAMIC_OBSTACLE_COUNT, OBSTACLES};
+use rtreach::obstacle_safety::{load_obstacles_from_csv, allocate_obstacles, DYNAMIC_OBSTACLE_COUNT, OBSTACLES};
 use rtreach::util::load_paths_from_csv;
 
 use bicycle::simulate_bicycle::step_bicycle;
@@ -17,7 +17,7 @@ use bicycle::utils::{distance, normalize_angle};
 use bicycle::controller::{select_safe_subgoal_rtreach, select_safe_subgoal_circle, model_sample_action};
 
 const PATH_DATASET_PARENT: &str = "eval_input_data/";
-const OBSTACLE_DATASET_PATH: &str = "eval_input_data/rr_nbd_obstacles.csv";
+const OBSTACLE_DATASET_PATH: &str = "eval_input_data/rr_nbd_obstacles_near_path.csv";
 const EVAL_OUTPUT_PARENT: &str = "eval_output_data/bicycle/nbd_exp/";
 const OBSTACLE_SPEED: f64 = 0.5; // m/s
 
@@ -110,7 +110,7 @@ fn main() -> TractResult<()> {
     }
 
     let paths_vec = load_paths_from_csv(&path_dataset_path);
-    load_obstacles_from_csv(&obstacle_dataset_path, initial_points);
+    let obstacles_vec = load_obstacles_from_csv(&obstacle_dataset_path);
 
     // Load the ONNX model from file
     let model = tract_onnx::onnx()
@@ -148,7 +148,6 @@ fn main() -> TractResult<()> {
         bicycle_model.set_model(&model);
     }
 
-    // let mut index = 0;
     let mut time_vec = vec![];
     let mut collisions = vec![];
     let mut no_subgoal_ctrl = vec![];
@@ -157,13 +156,8 @@ fn main() -> TractResult<()> {
     let mut deadline_violations = vec![];
 
     let mut pb = ProgressBar::new(1000);
-    for pth in paths_vec.iter(){
+    for (i, pth) in paths_vec.iter().enumerate(){
         pb.inc();
-        // println!("index: {}", index);
-        // index += 1;
-        // if index == 50 {
-        //     break;
-        // }
         let mut state = start_state.clone();
         state[0] = pth[0][0];
         state[1] = pth[0][1];
@@ -180,8 +174,14 @@ fn main() -> TractResult<()> {
 
         bicycle_model.set_goal(cur_goal_waypoint);
 
+        let mut obstacle_set = obstacles_vec[i].clone();
+        for pt in initial_points.iter() {
+            obstacle_set.insert(0, pt.clone());
+        }
+        allocate_obstacles(obstacle_set.len() as u32, &obstacle_set);
+
         {
-            if obstacle_type == "dynamic" {
+            if obstacle_type == "dynamic" && distance(&prev_goal_waypoint, &cur_goal_waypoint) > 4.0 {
                 let mut obstacles_lock = OBSTACLES.lock().unwrap();
                 if let Some(obstacles) = obstacles_lock.as_mut() {
                     update_obstacle_pos(obstacles, &prev_goal_waypoint, &cur_goal_waypoint);
