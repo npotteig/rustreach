@@ -195,7 +195,7 @@ pub fn load_obstacles_from_csv(filename: &std::path::PathBuf) -> Vec<Vec<[f64; 2
 }
 
 pub fn allocate_obstacles(num_obstacles: u32, points: &[[f64; 2]]){
-    println!("Allocating {} obstacles", num_obstacles);
+    // println!("Allocating {} obstacles", num_obstacles);
     let rows: usize = num_obstacles as usize;
     let mut obstacle_count = OBSTACLE_COUNT.lock().unwrap();
     *obstacle_count = num_obstacles;
