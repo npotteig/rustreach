@@ -190,8 +190,8 @@ pub fn load_obstacles_from_csv(filename: &std::path::PathBuf) -> Vec<Vec<[f64; 2
         }
         obstacle_set.push([x, y]);
     }
-    return obstacles_vec;
-    // allocate_obstacles(obstacles_vec.len() as u32, &obstacles_vec);
+    obstacles_vec.push(obstacle_set);
+    obstacles_vec
 }
 
 pub fn allocate_obstacles(num_obstacles: u32, points: &[[f64; 2]]){
