@@ -181,8 +181,8 @@ pub fn load_obstacles_from_csv(filename: &std::path::PathBuf) -> Vec<Vec<[f64; 2
     for result in reader.records() {
         let record = result.unwrap();
         let path_id = record.get(0).unwrap().parse::<i32>().unwrap();
-        let x = record.get(0).unwrap().parse::<f64>().unwrap();
-        let y = record.get(1).unwrap().parse::<f64>().unwrap();
+        let x = record.get(1).unwrap().parse::<f64>().unwrap();
+        let y = record.get(2).unwrap().parse::<f64>().unwrap();
         if cur_path_id != path_id {
             obstacles_vec.push(obstacle_set);
             obstacle_set = vec![];
@@ -191,6 +191,19 @@ pub fn load_obstacles_from_csv(filename: &std::path::PathBuf) -> Vec<Vec<[f64; 2
         obstacle_set.push([x, y]);
     }
     obstacles_vec.push(obstacle_set);
+    obstacles_vec
+}
+
+pub fn load_obstacles_from_csv_old(filename: &std::path::PathBuf) -> Vec<[f64; 2]>{
+    let mut obstacles_vec: Vec<[f64; 2]> = vec![];
+    println!("Loading obstacles from file: {:?}", filename);
+    let mut reader = ReaderBuilder::new().has_headers(false).from_path(filename).unwrap();
+    for result in reader.records() {
+        let record = result.unwrap();
+        let x = record.get(0).unwrap().parse::<f64>().unwrap();
+        let y = record.get(1).unwrap().parse::<f64>().unwrap();
+        obstacles_vec.push([x, y]);
+    }
     obstacles_vec
 }
 

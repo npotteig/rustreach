@@ -1004,6 +1004,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kdtree"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f0a0e9f770b65bac9aad00f97a67ab5c5319effed07f6da385da3c2115e47ba"
+dependencies = [
+ "num-traits",
+ "thiserror",
+]
+
+[[package]]
 name = "kstring"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1847,6 +1857,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "rrt"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7c1ef35d85ad3a9e66fe5b9ddcdf39184e65cd73ec5a8f4b1254d8cbea6eda6"
+dependencies = [
+ "kdtree",
+ "num-traits",
+ "rand",
+ "tracing",
+]
+
+[[package]]
+name = "rrt_path_generation"
+version = "0.1.0"
+dependencies = [
+ "csv",
+ "pbr",
+ "rand",
+ "rrt",
+ "rtreach",
+]
+
+[[package]]
 name = "rtreach"
 version = "0.1.0"
 dependencies = [
@@ -2321,7 +2354,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3523ab5a71916ccf420eebdf5521fcef02141234bbc0b8a49f2fdc4544364ef"
 dependencies = [
  "pin-project-lite",
+ "tracing-attributes",
  "tracing-core",
+]
+
+[[package]]
+name = "tracing-attributes"
+version = "0.1.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "395ae124c09f9e6918a2310af6038fba074bcf474ac352496d5910dd59a2226d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.77",
 ]
 
 [[package]]
