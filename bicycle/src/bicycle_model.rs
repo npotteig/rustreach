@@ -8,7 +8,7 @@ use rtreach::face_lift::{LiftingSettings, face_lifting_iterative_improvement};
 // 0.3 long in the y direction
 
 // function that stops simulation after two seconds
-pub fn should_stop(state: [f64; NUM_DIMS], sim_time: f64, stop_time: &mut f64) -> bool {
+pub fn should_stop(_: [f64; NUM_DIMS], sim_time: f64, stop_time: &mut f64) -> bool {
     let mut rv = false;
     let max_time = 2.0;
     // stop if the maximum simulation time 
@@ -35,7 +35,7 @@ pub fn intermediate_state(r: &mut HyperRectangle<NUM_DIMS>, time: f64, obstacle_
         storage_vec.push((time, *r));
     }
     
-    let mut allowed = true;
+    let mut allowed: bool;
     //const REAL FIFTEEN_DEGREES_IN_RADIANS = 0.2618;
 
     // bloat the box for the width of the car

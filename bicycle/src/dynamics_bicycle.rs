@@ -113,7 +113,7 @@ fn _get_derivative_bounds_bicycle(
     let is_min: bool = (face_index % 2) == 0;
 
     // Interval rv.min = rv.max = 0
-    let mut rv: Interval = new_interval_v(0.0);
+    let rv: Interval;
     let v: Interval = rect.dims[2];
     let theta: Interval = rect.dims[3];
 

@@ -10,7 +10,7 @@ use rtreach::face_lift::{LiftingSettings, face_lifting_iterative_improvement};
 // the total width of the quadcopter is 0.32 meters 
 
 // function that stops simulation after two seconds
-pub fn should_stop(state: [f64; NUM_DIMS], sim_time: f64, stop_time: &mut f64) -> bool {
+pub fn should_stop(_: [f64; NUM_DIMS], sim_time: f64, stop_time: &mut f64) -> bool {
     let mut rv = false;
     let max_time = 2.0;
     // stop if the maximum simulation time 
@@ -37,7 +37,7 @@ pub fn intermediate_state(r: &mut HyperRectangle<NUM_DIMS>, time: f64, obstacle_
         storage_vec.push((time, *r));
     }
     
-    let mut allowed = true;
+    let mut allowed: bool;
     let dxm = 0.16;
 
     // bloat the box for the width of the quadcopter

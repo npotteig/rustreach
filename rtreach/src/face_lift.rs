@@ -203,7 +203,7 @@ fn lift_single_rect<const NUM_DIMS: usize, T: SystemModel<NUM_DIMS>>(system_mode
 
 pub fn face_lifting_iterative_improvement<const NUM_DIMS: usize, T: SystemModel<NUM_DIMS>>(
     system_model: &T,
-    start_ms: u64,
+    _: u64,
     settings: &mut LiftingSettings<NUM_DIMS>,
     initial_ctrl_input: &Vec<f64>,
     store_rect: bool,
@@ -211,7 +211,7 @@ pub fn face_lifting_iterative_improvement<const NUM_DIMS: usize, T: SystemModel<
     fixed_step: bool,
     dynamic_control: bool,
 ) -> bool {
-    let mut rv = false;
+    let rv: bool;
     let mut last_iteration_safe = false;
     
     let now: SystemTime = SystemTime::now();
@@ -222,7 +222,7 @@ pub fn face_lifting_iterative_improvement<const NUM_DIMS: usize, T: SystemModel<
     let mut step_size: f64 = settings.initial_step_size;
 
     let mut iter: u64 = 0;           // number of iterations
-    let mut previous_iter: u64 = 1;
+    let mut previous_iter: u64;
     let mut elapsed_prev: u64 = 0;
     let mut next_iter_estimate: u64 = 0;
 

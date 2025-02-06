@@ -9,8 +9,8 @@ import numpy as np
 import imageio
 from tqdm import tqdm
 
-USING_RTREACH = False
-USING_QUAD = True
+USING_RTREACH = True
+USING_QUAD = False
 
 OBSTACLE_SPEED = 0.05
 OBSTACLE_OSCILLATION_TIME = 28
@@ -26,7 +26,7 @@ def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] 
         row = states.iloc[i]
         
         ax.set_xlim(-0.2, 4.2)
-        ax.set_ylim(-1, 1)
+        ax.set_ylim(-2, 2)
         ax.set_aspect('equal')
         ax.set_xlabel('x(m)')
         ax.set_ylabel('y(m)')
@@ -53,6 +53,24 @@ def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] 
             facecolor='blue',
             alpha=0.5
         ))
+        # pt_3 = [2, -1.4]
+        # ax.add_patch(patches.Rectangle(
+        #     (pt_3[0] - w/2, pt_3[1] - h/2),
+        #     w,
+        #     h,
+        #     edgecolor='black',
+        #     facecolor='blue',
+        #     alpha=0.5
+        # ))
+        # pt_4 = [2, 1.4]
+        # ax.add_patch(patches.Rectangle(
+        #     (pt_4[0] - w/2, pt_4[1] - h/2),
+        #     w,
+        #     h,
+        #     edgecolor='black',
+        #     facecolor='blue',
+        #     alpha=0.5
+        # ))
         if not USING_RTREACH:
             ax.add_patch(patches.Circle(
                 pt_0,

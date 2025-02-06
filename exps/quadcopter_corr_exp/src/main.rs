@@ -102,8 +102,8 @@ fn main() -> TractResult<()> {
 
     let mut quad_model = QuadcopterModel::default();
 
-    let num_obstacles: u32 = 2;
-    let points: [[f64; 2]; 2] = [[2.,0.7], [2., -0.7]];
+    let num_obstacles: u32 = 4;
+    let points: [[f64; 2]; 4] = [[2.,0.7], [2., -0.7], [2., 1.4], [2., -1.4]];
     allocate_obstacles(num_obstacles, &points);
     let initial_obstacles: Vec<Vec<Vec<f64>>>;
     {

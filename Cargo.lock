@@ -127,7 +127,6 @@ dependencies = [
  "csv",
  "pbr",
  "rtreach",
- "tract",
  "tract-onnx",
 ]
 
@@ -140,7 +139,6 @@ dependencies = [
  "lazy_static",
  "pbr",
  "rtreach",
- "tract",
  "tract-onnx",
 ]
 
@@ -150,7 +148,6 @@ version = "0.1.0"
 dependencies = [
  "bicycle",
  "rtreach",
- "tract",
  "tract-onnx",
 ]
 
@@ -160,7 +157,6 @@ version = "0.1.0"
 dependencies = [
  "bicycle",
  "rtreach",
- "tract",
  "tract-onnx",
 ]
 
@@ -1622,7 +1618,6 @@ dependencies = [
  "pbr",
  "quadcopter",
  "rtreach",
- "tract",
  "tract-onnx",
 ]
 
@@ -1635,7 +1630,6 @@ dependencies = [
  "pbr",
  "quadcopter",
  "rtreach",
- "tract",
  "tract-onnx",
 ]
 
@@ -1645,7 +1639,6 @@ version = "0.1.0"
 dependencies = [
  "quadcopter",
  "rtreach",
- "tract",
  "tract-onnx",
 ]
 
@@ -1655,7 +1648,6 @@ version = "0.1.0"
 dependencies = [
  "quadcopter",
  "rtreach",
- "tract",
  "tract-onnx",
 ]
 

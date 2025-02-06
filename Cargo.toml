@@ -13,4 +13,5 @@ members = [
     "exps/quadcopter_nbd_exp", 
     "exps/rrt_path_generation", 
 ]
+resolver = "2"
 

@@ -41,9 +41,9 @@ fn main() -> TractResult<()> {
 
     let mut quadcopter_model = QuadcopterModel::default();
 
-    let num_obstacles: u32 = 2;
+    let num_obstacles: u32 = 4;
+    let points: [[f64; 2]; 4] = [[2.,0.7], [2., -0.7], [2., 1.4], [2., -1.4]];
     let dynamic_obstacles: bool = true;
-    let points: [[f64; 2]; 2] = [[2.,0.7], [2., -0.7]];
     allocate_obstacles(num_obstacles, &points);
     let obstacle_sim_fn: fn(f64, &mut Vec<Vec<Vec<f64>>>) = if dynamic_obstacles { obstacle_sim_fn_dynamic } else { obstacle_sim_fn_static };
     if dynamic_obstacles {
