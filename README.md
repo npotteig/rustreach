@@ -30,6 +30,15 @@ The general running scheme is
 cargo run --release -p <exp_name> -- <args>
 ```
 
+**OR**
+
+Execute this script to run all experiments, excluding MFNLC. That can be found here: https://github.com/npotteig/rustreach_learning
+
+```
+source bash_scripts/run_all_exps.sh <save_output_data: ["0", "1"]>
+source bash_scripts/run_all_exps.sh 1
+```
+
 ### Vehicles
 * Bicyle Model for an autonomous car
 * Quadcopter Model for a UAV
@@ -53,7 +62,7 @@ A narrow passagway where the system must navigate from the left to the right sid
 ```
 
 ```
-<args>: <algorithm: ["wo", "rrfc", "rrrlc"]> <save_output_data: ["0", "1"]>
+<args>: <algorithm: ["wo", "rrfc", "rrrlc"]> <obstacle_type: ["static", "dynamic"]> <save_output_data: ["0", "1"]>
 ```
 
 Example run for bicycle model using WO algorithm that does not save output data:
@@ -72,7 +81,7 @@ A two-dimensional grid map from a neighborhood in Microsoft AirSim Flight Simula
 ```
 
 ```
-<args>: <algorithm: ["wo", "rrfc", "rrrlc"]> <waypt_algorithm: ["astar", "rrt"]> <save_output_data: ["0", "1"]>
+<args>: <algorithm: ["wo", "rrfc", "rrrlc"]> <waypt_algorithm: ["astar", "rrt"]> <obstacle_type: ["static", "dynamic"]> <save_output_data: ["0", "1"]>
 ```
 
 Example run for bicycle model using WO algorithm that does not save output data:
