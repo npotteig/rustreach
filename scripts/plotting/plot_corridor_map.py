@@ -8,7 +8,7 @@ plt.rcParams['font.size'] = 24
 if __name__ == '__main__':
     fig, ax = plt.subplots(figsize=(10, 8))
     ax.set_xlim(0, 4.2)
-    ax.set_ylim(-1, 1)
+    ax.set_ylim(-2, 2)
     ax.set_aspect('equal')
     ax.set_xlabel('x(m)')
     ax.set_ylabel('y(m)')
@@ -34,5 +34,23 @@ if __name__ == '__main__':
         facecolor='blue',
         alpha=0.5
     ))
+    pt_3 = [2, -1.4]
+    ax.add_patch(patches.Rectangle(
+        (pt_3[0] - w/2, pt_3[1] - h/2),
+        w,
+        h,
+        edgecolor='black',
+        facecolor='blue',
+        alpha=0.5
+    ))
+    pt_4 = [2, 1.4]
+    ax.add_patch(patches.Rectangle(
+        (pt_4[0] - w/2, pt_4[1] - h/2),
+        w,
+        h,
+        edgecolor='black',
+        facecolor='blue',
+        alpha=0.5
+    ))
 
-    plt.savefig('figs/paper/corridor_map.pdf', bbox_inches='tight')
+    plt.savefig('figs/paper/corridor_map.jpg', bbox_inches='tight')

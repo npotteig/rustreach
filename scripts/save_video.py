@@ -53,24 +53,24 @@ def convert_to_rgb_array(states: pd.DataFrame, subgoals: Optional[pd.DataFrame] 
             facecolor='blue',
             alpha=0.5
         ))
-        # pt_3 = [2, -1.4]
-        # ax.add_patch(patches.Rectangle(
-        #     (pt_3[0] - w/2, pt_3[1] - h/2),
-        #     w,
-        #     h,
-        #     edgecolor='black',
-        #     facecolor='blue',
-        #     alpha=0.5
-        # ))
-        # pt_4 = [2, 1.4]
-        # ax.add_patch(patches.Rectangle(
-        #     (pt_4[0] - w/2, pt_4[1] - h/2),
-        #     w,
-        #     h,
-        #     edgecolor='black',
-        #     facecolor='blue',
-        #     alpha=0.5
-        # ))
+        pt_3 = [2, -1.4]
+        ax.add_patch(patches.Rectangle(
+            (pt_3[0] - w/2, pt_3[1] - h/2),
+            w,
+            h,
+            edgecolor='black',
+            facecolor='blue',
+            alpha=0.5
+        ))
+        pt_4 = [2, 1.4]
+        ax.add_patch(patches.Rectangle(
+            (pt_4[0] - w/2, pt_4[1] - h/2),
+            w,
+            h,
+            edgecolor='black',
+            facecolor='blue',
+            alpha=0.5
+        ))
         if not USING_RTREACH:
             ax.add_patch(patches.Circle(
                 pt_0,
