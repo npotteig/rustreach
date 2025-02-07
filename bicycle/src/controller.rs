@@ -118,7 +118,7 @@ pub fn select_safe_subgoal_rtreach(
 ) -> (bool, [f64; 2], Vec<(f64, HyperRectangle<NUM_DIMS>)>) {
     let mut subgoals = 
     if sliding_window{
-        generate_linear_subgoals_sliding(&start, &goal, &[state[0], state[1]], num_subgoal_cands, 1.0, 5.0)
+        generate_linear_subgoals_sliding(&start, &goal, &[state[0], state[1]], num_subgoal_cands, 5.0, 5.0)
     } else {
         generate_linear_subgoals_simple(&start, &goal, num_subgoal_cands)
     };
