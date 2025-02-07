@@ -17,7 +17,8 @@ use quadcopter::utils::{distance, normalize_angle};
 use quadcopter::controller::{select_safe_subgoal_rtreach, select_safe_subgoal_circle, model_sample_action};
 
 const PATH_DATASET_PARENT: &str = "eval_input_data/";
-const OBSTACLE_DATASET_PATH: &str = "eval_input_data/rr_nbd_obstacles_near_path.csv";
+const ASTAR_OBSTACLE_DATASET_PATH: &str = "eval_input_data/astar_rr_nbd_obstacles_near_path.csv";
+const RRT_OBSTACLE_DATASET_PATH: &str = "eval_input_data/rrt_rr_nbd_obstacles_near_path.csv";
 const EVAL_OUTPUT_PARENT: &str = "eval_output_data/quadcopter/nbd_exp/";
 const OBSTACLE_SPEED: f64 = 0.5; // m/s
 
@@ -101,7 +102,12 @@ fn main() -> TractResult<()> {
 
     let path_dataset_parent = current_dir.join(PATH_DATASET_PARENT);
     let path_dataset_path = path_dataset_parent.join(format!("{}_rustreach_paths.csv", waypt_algorithm));
-    let obstacle_dataset_path = current_dir.join(OBSTACLE_DATASET_PATH);
+    let obstacle_dataset_path = if waypt_algorithm == "astar" {
+        current_dir.join(ASTAR_OBSTACLE_DATASET_PATH)
+    }
+    else {
+        current_dir.join(RRT_OBSTACLE_DATASET_PATH)
+    };
     let eval_output_parent = current_dir.join(EVAL_OUTPUT_PARENT);
     let eval_output_path = eval_output_parent.join(format!("{}_{}_{}_nbd_exp.csv", algorithm, waypt_algorithm, obstacle_type));
 
