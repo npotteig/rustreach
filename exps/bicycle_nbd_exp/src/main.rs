@@ -136,7 +136,7 @@ fn main() -> TractResult<()> {
     let use_rtreach = algorithm_parameters[2];
     let use_rtreach_dynamic_control = algorithm_parameters[3];
     let pi_low = model_sample_action;
-    let sim_time = 2.0;
+    let sim_time = 1.0;
     let wall_time_ms = 100;
     let start_ms = 0;
     let store_rect = false;
@@ -181,7 +181,7 @@ fn main() -> TractResult<()> {
         allocate_obstacles(obstacle_set.len() as u32, &obstacle_set);
 
         {
-            if obstacle_type == "dynamic" && distance(&prev_goal_waypoint, &cur_goal_waypoint) > 4.0 {
+            if obstacle_type == "dynamic" && distance(&prev_goal_waypoint, &cur_goal_waypoint) > 2.9 {
                 let mut obstacles_lock = OBSTACLES.lock().unwrap();
                 if let Some(obstacles) = obstacles_lock.as_mut() {
                     update_obstacle_pos(obstacles, &prev_goal_waypoint, &cur_goal_waypoint);
