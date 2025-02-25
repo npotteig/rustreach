@@ -16,6 +16,24 @@ We include four experiments discussed below. The experiments source code can be 
 
 1. Taylor T. Johnson, Stanley Bak, Marco Caccamo, and Lui Sha. 2016. Real-Time Reachability for Verified Simplex Design. ACM Trans. Embed. Comput. Syst. 15, 2, Article 26 (May 2016), 27 pages. https://doi.org/10.1145/2723871
 
+## Quadcopter Videos
+
+### Follow Waypoints Only (Collision)
+Initial disturbance of +1m/s in the +y direction
+
+![watch the video](videos/quad_wo.gif)
+
+### RusTReach RL Control (Safe)
+Initial disturbance of +1m/s in the +y direction
+
+![watch the video](videos/quad_rustreach_rlc.gif)
+
+### Neighborhood RusTReach RL Control
+
+#### Static Obstacles Only
+
+#### Add Dynamic Obstacle
+
 ## Install Rust
 
 ```shell
