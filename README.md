@@ -30,9 +30,9 @@ Initial disturbance of +1m/s in the +y direction
 
 ### Neighborhood RusTReach RL Control
 
-#### Static Obstacles Only
+[Static Obstacles Only](https://github.com/npotteig/rustreach/blob/main/videos/nbd_rrrlc_astar_static.mp4)
 
-#### Add Dynamic Obstacle
+[Add Dynamic Obstacle](https://github.com/npotteig/rustreach/blob/main/videos/nbd_rrrlc_astar_dynamic.mp4)
 
 ## Install Rust
 
